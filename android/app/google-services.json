@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "496507290456",
+    "project_id": "attendance-df6ed",
+    "storage_bucket": "attendance-df6ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496507290456:android:d80cc62cdd1826243e1b2d",
+        "android_client_info": {
+          "package_name": "karma.attendance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxuBLy6Hpg-GmMgom_VU3k5_qAmPxMlkQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
