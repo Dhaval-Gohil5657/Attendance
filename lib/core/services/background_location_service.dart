@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -222,26 +223,37 @@ class BackgroundLocationService {
 
           bool isSynced = false;
 
-          // Attempt real-time upload to Firestore location_logs collection
-          try {
-            final locData = {
-              'attendanceId': currentAttendanceId,
-              'employeeId': currentEmployeeId ?? 'EMP_DUMMY_001',
-              'latitude': position.latitude,
-              'longitude': position.longitude,
-              'accuracy': position.accuracy,
-              'speed': position.speed,
-              'bearing': position.heading,
-              'altitude': position.altitude,
-              'batteryLevel': 100,
-              'timestamp': Timestamp.fromDate(DateTime.now()),
-            };
+          // Check network connectivity before attempting Firestore upload
+          final connectivityResult = await Connectivity().checkConnectivity();
+          final isOnline = connectivityResult.any((res) =>
+              res == ConnectivityResult.mobile ||
+              res == ConnectivityResult.wifi ||
+              res == ConnectivityResult.ethernet);
 
-            await FirebaseFirestore.instance.collection('location_logs').add(locData);
-            isSynced = true;
-            logger.i('🚀 Successfully synced 1 location log to Firestore (Lat: ${position.latitude.toStringAsFixed(5)}, Lng: ${position.longitude.toStringAsFixed(5)}).');
-          } catch (e) {
-            logger.w('Firestore live upload error (queued for auto-sync): $e');
+          if (isOnline) {
+            try {
+              final locData = {
+                'attendanceId': currentAttendanceId,
+                'employeeId': currentEmployeeId ?? 'EMP_DUMMY_001',
+                'latitude': position.latitude,
+                'longitude': position.longitude,
+                'accuracy': position.accuracy,
+                'speed': position.speed,
+                'bearing': position.heading,
+                'altitude': position.altitude,
+                'batteryLevel': 100,
+                'timestamp': Timestamp.fromDate(DateTime.now()),
+              };
+
+              await FirebaseFirestore.instance.collection('location_logs').add(locData);
+              isSynced = true;
+              logger.i('🚀 Successfully synced 1 location log to Firestore (Lat: ${position.latitude.toStringAsFixed(5)}, Lng: ${position.longitude.toStringAsFixed(5)}).');
+            } catch (e) {
+              isSynced = false;
+              logger.w('Firestore live upload error (queued for auto-sync): $e');
+            }
+          } else {
+            logger.i('Network status OFFLINE. Saved location locally in SQLite for auto-sync.');
           }
 
           final locationEntity = LocationEntity(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -14,9 +15,19 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+
+  // Dev Credentials: Automatically pre-filled ONLY in debug mode for quick testing.
+  // In production builds (Release mode), fields default to empty strings.
+  final _nameController = TextEditingController(
+    text: kDebugMode ? 'John Doe' : '',
+  );
+  final _emailController = TextEditingController(
+    text: kDebugMode ? 'employee@gmail.com' : '',
+  );
+  final _passwordController = TextEditingController(
+    text: kDebugMode ? '123456' : '',
+  );
+
   bool _isSignUp = false;
   bool _obscurePassword = true;
 
