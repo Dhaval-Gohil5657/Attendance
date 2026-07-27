@@ -100,7 +100,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
             locationSettings: AndroidSettings(
               accuracy: LocationAccuracy.high,
               distanceFilter: 0,
-              forceLocationManager: true,
+              forceLocationManager: false,
               timeLimit: const Duration(seconds: 10),
             ),
           );
@@ -174,7 +174,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
           locationSettings: AndroidSettings(
             accuracy: LocationAccuracy.high,
             distanceFilter: 0,
-            forceLocationManager: true,
+            forceLocationManager: false,
             timeLimit: const Duration(seconds: 10),
           ),
         );

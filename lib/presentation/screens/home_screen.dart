@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../domain/entities/user_entity.dart';
 import '../bloc/attendance_bloc.dart';
@@ -92,6 +94,11 @@ class HomeScreen extends StatelessWidget {
 
                 // Live Location Info Card
                 _buildLocationCard(state),
+
+                const SizedBox(height: 16),
+
+                // Live Interactive Map View
+                _buildLiveMapCard(state),
 
                 const SizedBox(height: 24),
 
@@ -409,6 +416,105 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildLiveMapCard(AttendanceState state) {
+    if (state.currentLatitude == null || state.currentLongitude == null) {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 12),
+              Text(
+                'Acquiring satellite GPS map location...',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final userLatLng = LatLng(state.currentLatitude!, state.currentLongitude!);
+
+    return Container(
+      height: 260,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: userLatLng,
+              initialZoom: 17.5,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.attendance',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: userLatLng,
+                    width: 40,
+                    height: 40,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black26, blurRadius: 6),
+                        ],
+                      ),
+                      child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 24),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.map, color: Colors.amberAccent, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    'Live Movement Map',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

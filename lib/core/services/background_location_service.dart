@@ -135,7 +135,7 @@ class BackgroundLocationService {
               locationSettings: AndroidSettings(
                 accuracy: LocationAccuracy.high,
                 distanceFilter: 0,
-                forceLocationManager: true,
+                forceLocationManager: false,
                 timeLimit: const Duration(seconds: 10),
               ),
             );
@@ -149,13 +149,28 @@ class BackgroundLocationService {
             return;
           }
 
-          // Accuracy Filter: Ignore weak signal / cell tower jumps (> 15 meters accuracy)
-          if (position.accuracy > 15.0) {
-            logger.i('Accuracy filter: signal accuracy ${position.accuracy.toStringAsFixed(1)}m is > 15.0m (weak GPS signal / cell tower jump). Skipping.');
-            return;
+          // Restore _lastSavedPosition from local database if in-memory variable is null (e.g. after service restart)
+          if (_lastSavedPosition == null) {
+            final latestLoc = await localDataSource.getLatestLocation();
+            if (latestLoc != null) {
+              _lastSavedPosition = Position(
+                latitude: latestLoc.latitude,
+                longitude: latestLoc.longitude,
+                timestamp: latestLoc.timestamp,
+                accuracy: latestLoc.accuracy,
+                altitude: latestLoc.altitude,
+                heading: latestLoc.bearing,
+                speed: latestLoc.speed,
+                speedAccuracy: 0.0,
+                altitudeAccuracy: 0.0,
+                headingAccuracy: 0.0,
+              );
+            }
           }
 
-          // Stationary & Walking Filter: Require 8.0 meters movement (approx 10 walking steps) to filter all stationary indoor noise
+          // Stationary & Motion Verification Filter:
+          // 1. Min Distance: 3.0 meters
+          // 2. Hardware Speed Check: position.speed >= 0.7 m/s (~2.5 km/h walking speed) required for ALL distances.
           if (_lastSavedPosition != null) {
             final distanceMoved = Geolocator.distanceBetween(
               _lastSavedPosition!.latitude,
@@ -163,13 +178,23 @@ class BackgroundLocationService {
               position.latitude,
               position.longitude,
             );
-            if (distanceMoved < 8.0) {
-              logger.i('Stationary filter: distance ${distanceMoved.toStringAsFixed(2)}m is < 8.0m (stationary desk noise). Skipping upload.');
+
+            // Filter 1: Minimum distance check (ignore microscopic noise < 3.0m)
+            if (distanceMoved < 3.0) {
               return;
             }
-            logger.i('✅ WALKING VERIFIED: Moved ${distanceMoved.toStringAsFixed(2)}m >= 8.0m. Pushing 1 location log to Firestore...');
+
+            // Filter 2: Pure Hardware Speed Verification (No max distance limit)
+            // Requires physical movement speed >= 0.7 m/s (~2.5 km/h walking speed).
+            // If speed < 0.7 m/s (including 0.00 m/s), it is rejected regardless of distance moved.
+            if (position.speed < 0.7) {
+              // logger.i('GPS Drift Filter: Distance changed by ${distanceMoved.toStringAsFixed(1)}m but speed is ${position.speed.toStringAsFixed(2)} m/s (< 0.7 m/s). Skipping stationary drift.');
+              return;
+            }
+
+            logger.i('✅ MOTION VERIFIED: Moved ${distanceMoved.toStringAsFixed(1)}m, Speed: ${position.speed.toStringAsFixed(2)} m/s. Pushing location log...');
           } else {
-            logger.i('✅ INITIAL POSITION CAPTURED: Pushing initial location log to Firestore...');
+            logger.i('✅ INITIAL POSITION CAPTURED: Pushing initial location log...');
           }
           _lastSavedPosition = position;
 
