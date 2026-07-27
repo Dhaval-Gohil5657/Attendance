@@ -76,6 +76,15 @@ class BackgroundLocationService {
         activeAttendanceId = event['attendanceId'] as String;
         activeEmployeeId = event['employeeId'] as String?;
         logger.i('Background Service received in-memory session: $activeAttendanceId');
+
+        if (event['lat'] != null && event['lng'] != null && service is AndroidServiceInstance) {
+          final double initialLat = (event['lat'] as num).toDouble();
+          final double initialLng = (event['lng'] as num).toDouble();
+          service.setForegroundNotificationInfo(
+            title: 'Attendance Tracking Active',
+            content: 'Lat: ${initialLat.toStringAsFixed(5)}, Long: ${initialLng.toStringAsFixed(5)}',
+          );
+        }
       }
     });
 
@@ -100,14 +109,41 @@ class BackgroundLocationService {
         });
       }
 
+      StreamSubscription<Position>? positionSubscription;
+
       service.on('stopService').listen((event) {
         activeAttendanceId = null;
         activeEmployeeId = null;
+        positionSubscription?.cancel();
         service.stopSelf();
         logger.i('Background Location Service Stopped.');
       });
 
-      Future<void> fetchAndSaveLocation() async {
+      // Instant notification update using last known position or database (under 10ms)
+      Future<void> updateInstantNotification() async {
+        if (service is! AndroidServiceInstance) return;
+        try {
+          final lastPos = await Geolocator.getLastKnownPosition();
+          if (lastPos != null) {
+            service.setForegroundNotificationInfo(
+              title: 'Attendance Tracking Active',
+              content: 'Lat: ${lastPos.latitude.toStringAsFixed(5)}, Long: ${lastPos.longitude.toStringAsFixed(5)}',
+            );
+            return;
+          }
+          final dbLoc = await localDataSource.getLatestLocation();
+          if (dbLoc != null) {
+            service.setForegroundNotificationInfo(
+              title: 'Attendance Tracking Active',
+              content: 'Lat: ${dbLoc.latitude.toStringAsFixed(5)}, Long: ${dbLoc.longitude.toStringAsFixed(5)}',
+            );
+          }
+        } catch (_) {}
+      }
+      updateInstantNotification();
+
+      // Process location update using continuous GPS hardware stream (provides real position.speed)
+      Future<void> processLocationUpdate(Position position) async {
         try {
           String? currentAttendanceId = activeAttendanceId;
           String? currentEmployeeId = activeEmployeeId;
@@ -128,25 +164,12 @@ class BackgroundLocationService {
             return;
           }
 
-          // Request fresh live GPS location from Android hardware manager
-          Position? position;
-          try {
-            position = await Geolocator.getCurrentPosition(
-              locationSettings: AndroidSettings(
-                accuracy: LocationAccuracy.high,
-                distanceFilter: 0,
-                forceLocationManager: false,
-                timeLimit: const Duration(seconds: 10),
-              ),
+          // Update foreground notification IMMEDIATELY with fresh hardware coordinates
+          if (service is AndroidServiceInstance) {
+            service.setForegroundNotificationInfo(
+              title: 'Tracking Active (${currentAttendanceId.substring(0, 8)})',
+              content: 'Lat: ${position.latitude.toStringAsFixed(5)}, Long: ${position.longitude.toStringAsFixed(5)}',
             );
-          } catch (e) {
-            logger.w('getCurrentPosition fallback to getLastKnownPosition: $e');
-            position = await Geolocator.getLastKnownPosition();
-          }
-
-          if (position == null) {
-            logger.w('No position available.');
-            return;
           }
 
           // Restore _lastSavedPosition from local database if in-memory variable is null (e.g. after service restart)
@@ -170,7 +193,7 @@ class BackgroundLocationService {
 
           // Stationary & Motion Verification Filter:
           // 1. Min Distance: 3.0 meters
-          // 2. Hardware Speed Check: position.speed >= 0.7 m/s (~2.5 km/h walking speed) required for ALL distances.
+          // 2. Hardware Speed Check: position.speed >= 0.7 m/s (~2.5 km/h walking speed)
           if (_lastSavedPosition != null) {
             final distanceMoved = Geolocator.distanceBetween(
               _lastSavedPosition!.latitude,
@@ -179,16 +202,15 @@ class BackgroundLocationService {
               position.longitude,
             );
 
-            // Filter 1: Minimum distance check (ignore microscopic noise < 3.0m)
+            // Filter 1: Minimum distance check (ignore noise < 3.0m)
             if (distanceMoved < 3.0) {
               return;
             }
 
-            // Filter 2: Pure Hardware Speed Verification (No max distance limit)
+            // Filter 2: Pure Hardware Motion Speed Sensor Verification (position.speed in m/s)
             // Requires physical movement speed >= 0.7 m/s (~2.5 km/h walking speed).
-            // If speed < 0.7 m/s (including 0.00 m/s), it is rejected regardless of distance moved.
             if (position.speed < 0.7) {
-              // logger.i('GPS Drift Filter: Distance changed by ${distanceMoved.toStringAsFixed(1)}m but speed is ${position.speed.toStringAsFixed(2)} m/s (< 0.7 m/s). Skipping stationary drift.');
+              // logger.i('GPS Drift Filter: Distance changed by ${distanceMoved.toStringAsFixed(1)}m but hardware motion speed is ${position.speed.toStringAsFixed(2)} m/s (< 0.7 m/s). Skipping stationary drift.');
               return;
             }
 
@@ -239,13 +261,6 @@ class BackgroundLocationService {
           await localDataSource.saveLocation(model);
           logger.i('Background Service: Saved location (${position.latitude}, ${position.longitude}) to local DB.');
 
-          if (service is AndroidServiceInstance) {
-            service.setForegroundNotificationInfo(
-              title: 'Tracking Active (${currentAttendanceId.substring(0, 8)})',
-              content: 'Lat: ${position.latitude.toStringAsFixed(5)}, Long: ${position.longitude.toStringAsFixed(5)}',
-            );
-          }
-
           // Notify UI of live location update
           service.invoke('updateLocation', {
             'latitude': position.latitude,
@@ -253,28 +268,62 @@ class BackgroundLocationService {
             'timestamp': DateTime.now().toIso8601String(),
           });
         } catch (e) {
-          logger.e('Background Service Location Fetch Error: $e');
+          logger.e('Background Service Location Process Error: $e');
         }
       }
 
-      // Immediate initial fetch
-      fetchAndSaveLocation();
+      DateTime? lastStreamEventTime;
 
-      // Run periodic location tracking every 5 seconds
+      void handlePosition(Position pos) {
+        lastStreamEventTime = DateTime.now();
+        processLocationUpdate(pos);
+      }
+
+      // 1. Primary Continuous GPS Hardware Stream
+      positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+        ),
+      ).listen(
+        (pos) => handlePosition(pos),
+        onError: (e) => logger.e('GPS Stream Error: $e'),
+      );
+
+      // 2. Hybrid Watchdog Timer (Runs every 5 seconds)
+      // Guarantees tracking NEVER stalls or stops when Android Doze mode / screen off pauses stream callbacks
       Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
           if (activeAttendanceId == null) {
             final activeAttendance = await localDataSource.getActiveAttendance();
             if (activeAttendance == null || !activeAttendance.isTracking) {
-              logger.i('Stopping background location timer.');
+              logger.i('Stopping background location service.');
+              positionSubscription?.cancel();
               timer.cancel();
               service.stopSelf();
               return;
             }
           }
-          fetchAndSaveLocation();
+
+          // If no stream update arrived in the last 6 seconds, force-wake GPS via hardware LocationManager
+          final now = DateTime.now();
+          if (lastStreamEventTime == null || now.difference(lastStreamEventTime!).inSeconds >= 6) {
+            try {
+              final pos = await Geolocator.getCurrentPosition(
+                locationSettings: AndroidSettings(
+                  accuracy: LocationAccuracy.high,
+                  distanceFilter: 0,
+                  forceLocationManager: true,
+                  timeLimit: const Duration(seconds: 4),
+                ),
+              );
+              handlePosition(pos);
+            } catch (e) {
+              logger.w('Watchdog GPS poll error: $e');
+            }
+          }
         } catch (e) {
-          logger.e('Timer periodic error: $e');
+          logger.e('Watchdog timer loop error: $e');
         }
       });
     } catch (e) {
@@ -285,6 +334,8 @@ class BackgroundLocationService {
   static Future<void> startTracking({
     String? attendanceId,
     String? employeeId,
+    double? lat,
+    double? lng,
   }) async {
     _lastSavedPosition = null;
     try {
@@ -297,6 +348,8 @@ class BackgroundLocationService {
         service.invoke('setAttendanceData', {
           'attendanceId': attendanceId,
           'employeeId': employeeId,
+          'lat': lat,
+          'lng': lng,
         });
       }
     } catch (e) {

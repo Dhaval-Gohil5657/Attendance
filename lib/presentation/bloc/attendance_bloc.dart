@@ -159,28 +159,30 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         employeeId: event.employeeId.isEmpty ? 'EMP_DUMMY_001' : event.employeeId,
       );
 
-      // Start continuous background location service
-      await BackgroundLocationService.startTracking(
-        attendanceId: newAttendance.attendanceId,
-        employeeId: newAttendance.employeeId,
-      );
-
       double? lat = state.currentLatitude;
       double? lng = state.currentLongitude;
 
       try {
         Position? pos = await Geolocator.getLastKnownPosition();
         pos ??= await Geolocator.getCurrentPosition(
-          locationSettings: AndroidSettings(
+          locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.high,
-            distanceFilter: 0,
-            forceLocationManager: false,
-            timeLimit: const Duration(seconds: 10),
+            timeLimit: Duration(seconds: 3),
           ),
         );
-        lat = pos.latitude;
-        lng = pos.longitude;
+        if (pos != null) {
+          lat = pos.latitude;
+          lng = pos.longitude;
+        }
       } catch (_) {}
+
+      // Start continuous background location service with instant initial position
+      await BackgroundLocationService.startTracking(
+        attendanceId: newAttendance.attendanceId,
+        employeeId: newAttendance.employeeId,
+        lat: lat,
+        lng: lng,
+      );
 
       final count = await repository.getUnsyncedLocationsCount();
 
