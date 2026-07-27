@@ -44,6 +44,7 @@ class BackgroundLocationService {
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
         autoStart: false,
+        autoStartOnBoot: true, // Auto-starts background tracking service on device reboot (does NOT open app UI)
         isForegroundMode: true,
         notificationChannelId: notificationChannelId,
         initialNotificationTitle: 'Attendance Tracking Active',
