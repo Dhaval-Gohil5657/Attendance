@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
-
-import '../../domain/entities/user_entity.dart';
+import '../../domain/entities/employee_entity.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -14,9 +13,18 @@ class AuthInitialState extends AuthState {}
 class AuthLoadingState extends AuthState {}
 
 class AuthenticatedState extends AuthState {
-  final UserEntity user;
+  final EmployeeEntity user;
 
   const AuthenticatedState({required this.user});
+
+  @override
+  List<Object?> get props => [user];
+}
+
+class CompanyPendingApprovalState extends AuthState {
+  final EmployeeEntity user;
+
+  const CompanyPendingApprovalState({required this.user});
 
   @override
   List<Object?> get props => [user];

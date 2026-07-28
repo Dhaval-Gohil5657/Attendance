@@ -5,9 +5,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import 'company/company_register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String initialRole; // 'company' or 'employee'
+
+  const LoginScreen({
+    super.key,
+    this.initialRole = 'employee',
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,24 +22,28 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Dev Credentials: Automatically pre-filled ONLY in debug mode for quick testing.
-  // In production builds (Release mode), fields default to empty strings.
-  final _nameController = TextEditingController(
-    text: kDebugMode ? 'John Doe' : '',
-  );
-  final _emailController = TextEditingController(
-    text: kDebugMode ? 'employee@gmail.com' : '',
-  );
-  final _passwordController = TextEditingController(
-    text: kDebugMode ? '123456' : '',
-  );
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
-  bool _isSignUp = false;
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+
+    if (kDebugMode) {
+      if (widget.initialRole == 'company') {
+        _emailController.text = 'company@gmail.com';
+        _passwordController.text = '123456';
+      } else {
+        _emailController.text = 'employee@gmail.com';
+        _passwordController.text = '123456';
+      }
+    }
+  }
+
+  @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -42,33 +52,35 @@ class _LoginScreenState extends State<LoginScreen> {
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       FocusScope.of(context).unfocus();
-      if (_isSignUp) {
-        context.read<AuthBloc>().add(
-              RegisterSubmittedEvent(
-                name: _nameController.text,
-                email: _emailController.text,
-                password: _passwordController.text,
-              ),
-            );
-      } else {
-        context.read<AuthBloc>().add(
-              LoginSubmittedEvent(
-                email: _emailController.text,
-                password: _passwordController.text,
-              ),
-            );
-      }
+      context.read<AuthBloc>().add(
+            LoginSubmittedEvent(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+              role: widget.initialRole,
+            ),
+          );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isCompany = widget.initialRole == 'company';
+    final primaryColor = isCompany ? Colors.indigo.shade800 : Colors.teal.shade800;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FA),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(isCompany ? 'Company Login' : 'Employee Login'),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is UnauthenticatedState && state.errorMessage != null) {
+            if (state is CompanyPendingApprovalState || state is AuthenticatedState) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            } else if (state is UnauthenticatedState && state.errorMessage != null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(state.errorMessage!),
@@ -89,88 +101,54 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Logo & Header Icon
+                      // Role Icon Header
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.indigo.shade50,
+                          color: isCompany ? Colors.indigo.shade50 : Colors.teal.shade50,
                         ),
                         child: Icon(
-                          _isSignUp ? Icons.person_add_alt_1 : Icons.security_rounded,
-                          size: 60,
-                          color: Colors.indigo.shade800,
+                          isCompany ? Icons.corporate_fare : Icons.person_pin_rounded,
+                          size: 56,
+                          color: primaryColor,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       Text(
-                        _isSignUp ? 'Register Employee' : 'Employee Login',
+                        isCompany ? 'Company Login' : 'Employee Login',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontSize: 26,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _isSignUp
-                            ? 'Create a new employee account to begin tracking'
-                            : 'Sign in to start your attendance session & location tracking',
+                        isCompany
+                            ? 'Sign in using company owner credentials'
+                            : 'Sign in using credentials provided by your company',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
+                        style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 32),
 
-                      // Name Field (Only in Sign Up mode)
-                      if (_isSignUp) ...[
-                        TextFormField(
-                          controller: _nameController,
-                          enabled: !isLoading,
-                          decoration: InputDecoration(
-                            labelText: 'Full Name',
-                            prefixIcon: const Icon(Icons.person_outline),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                          ),
-                          validator: (value) {
-                            if (_isSignUp && (value == null || value.trim().isEmpty)) {
-                              return 'Please enter your full name';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Email Field
+                      // Email / User ID Field
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         enabled: !isLoading,
                         decoration: InputDecoration(
-                          labelText: 'Employee Email',
+                          labelText: isCompany ? 'Company Email Address' : 'Employee User ID / Email',
                           prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           filled: true,
                           fillColor: Colors.white,
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email address';
-                          }
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Enter your email or ID';
                           return null;
                         },
                       ),
@@ -185,30 +163,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'Password',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                            icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           filled: true,
                           fillColor: Colors.white,
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
-                          }
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Enter password';
+                          if (v.length < 6) return 'Password must be at least 6 characters';
                           return null;
                         },
                       ),
@@ -218,52 +182,45 @@ class _LoginScreenState extends State<LoginScreen> {
                       ElevatedButton(
                         onPressed: isLoading ? null : _submitForm,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo.shade800,
+                          backgroundColor: primaryColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
                         ),
                         child: isLoading
                             ? const SizedBox(
                                 height: 24,
                                 width: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
                               )
-                            : Text(
-                                _isSignUp ? 'CREATE ACCOUNT' : 'LOG IN',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            : const Text(
+                                'LOG IN',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Switch between Sign In / Sign Up Toggle
-                      TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _isSignUp = !_isSignUp;
-                                });
-                              },
-                        child: Text(
-                          _isSignUp
-                              ? 'Already have an account? Sign In'
-                              : "Don't have an account? Register Here",
-                          style: TextStyle(
-                            color: Colors.indigo.shade800,
-                            fontWeight: FontWeight.w600,
+                      // Register Company Button if Company mode selected
+                      if (isCompany) ...[
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.add_business),
+                          label: const Text('REGISTER NEW COMPANY'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: primaryColor,
+                            side: BorderSide(color: primaryColor),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const CompanyRegisterScreen(),
+                              ),
+                            );
+                          },
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

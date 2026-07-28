@@ -4,17 +4,18 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../domain/entities/user_entity.dart';
-import '../bloc/attendance_bloc.dart';
-import '../bloc/attendance_event.dart';
-import '../bloc/attendance_state.dart';
-import '../bloc/auth_bloc.dart';
-import '../bloc/auth_event.dart';
+import '../../../domain/entities/employee_entity.dart';
+import '../../bloc/attendance_bloc.dart';
+import '../../bloc/attendance_event.dart';
+import '../../bloc/attendance_state.dart';
+import '../../bloc/auth_bloc.dart';
+import '../../bloc/auth_event.dart';
+import 'employee_profile_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  final UserEntity user;
+class EmployeeDashboardScreen extends StatelessWidget {
+  final EmployeeEntity user;
 
-  const HomeScreen({super.key, required this.user});
+  const EmployeeDashboardScreen({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +26,6 @@ class HomeScreen extends StatelessWidget {
           'Attendance & Live Tracking',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.indigo.shade800,
         foregroundColor: Colors.white,
@@ -35,13 +35,6 @@ class HomeScreen extends StatelessWidget {
             tooltip: 'Sync Now',
             onPressed: () {
               context.read<AttendanceBloc>().add(SyncNowEvent());
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log Out',
-            onPressed: () {
-              context.read<AuthBloc>().add(LogoutSubmittedEvent());
             },
           ),
         ],
@@ -78,7 +71,7 @@ class HomeScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Employee Info Header
-                _buildEmployeeCard(),
+                _buildEmployeeCard(context),
 
                 const SizedBox(height: 16),
 
@@ -112,53 +105,68 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmployeeCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.indigo.shade800, Colors.indigo.shade600],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.indigo.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.person, size: 34, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name.isNotEmpty ? user.name : 'Employee User',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              ],
+  Widget _buildEmployeeCard(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => EmployeeProfileScreen(user: user),
             ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.indigo.shade800, Colors.indigo.shade600],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.indigo.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.white24,
+                child: Icon(Icons.person, size: 34, color: Colors.white),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name.isNotEmpty ? user.name : 'Employee User',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user.email,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.white70),
+            ],
+          ),
+        ),
       ),
     );
   }

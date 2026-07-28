@@ -1,556 +1,194 @@
 /*
-# Attendance - Employee Attendance & Live Location Tracking (POC)
+# HRMS - Employee Attendance & Live Location Tracking System
 
 ## Project Overview
 
-Attendance is an Android-based employee attendance and live location tracking application built using Flutter. This project is currently being developed as a **Proof of Concept (POC)** to validate the core functionality of an enterprise attendance system.
+**HRMS** is an enterprise-grade Human Resource Management System with Employee Attendance and Live Location Tracking, built using **Flutter** for Android devices.
 
-The main objective of this POC is to ensure that once an employee marks attendance, the application can continuously track the employee's location, even when the application is running in the background, minimized, or (where Android permits) closed. The system should also be able to recover automatically after a device reboot, continue tracking, work offline, and synchronize data once internet connectivity becomes available.
-
-Although this is currently a POC, the project should be designed using enterprise-level architecture so it can later evolve into a complete Employee Management System without requiring major structural changes.
-
-The application should follow modern Flutter development practices, maintain clean code, and be easy to scale and maintain.
+The application operates on an **Offline-First Architecture** following **Clean Architecture** principles. It ensures reliable attendance management, configurable verification policies, break tracking, foreground live location tracking, device reboot recovery, and automatic data synchronization.
 
 ---
 
-# Primary Objectives
+## 1. Initial Landing & Role-Based Entry
 
-The primary goals of this POC are:
+When the application is launched for the first time or when no session is active, the initial landing page presents two primary entry points:
 
-- Allow employees to mark attendance.
-- Start continuous background location tracking.
-- Continue tracking while the application is:
-  - Open
-  - Running in background
+- **Login as Company**: For company registration, onboarding status, and administrative setup.
+- **Login as Employee**: For daily employee authentication, attendance marking, break tracking, and profile settings.
+
+---
+
+## 2. Company Onboarding & Management Flow
+
+### Company Registration
+- A new company registers via the app or web portal by filling in company details:
+  - Company Name
+  - Address
+  - GST Number / Registration ID
+  - Owner / Authorized Person Name
+  - Email Address
+  - Contact Number
+- Upon registration submission, the company account is placed in **Pending** status.
+
+### Super Admin Review & Approval
+- Super Admin reviews the company application via the Admin Panel.
+- Account approval or rejection takes place (typically within 2 business days).
+- Once approved, the company status changes to **Active**.
+
+### Employee Provisioning & Credential Sharing
+- Active companies can add employees and configure their profiles.
+- Company creates initial login credentials (User ID / Password) for each employee.
+- Credential Distribution:
+  - Sent directly to the employee via **WhatsApp** (with option for Email/SMS backup).
+
+---
+
+## 3. Employee Authentication & Security Setup
+
+### Splash & Initial Login
+- **Splash Screen**: Displays branding upon app launch and automatically navigates to the Login screen.
+- **First Login Prompt**:
+  - Employee logs in using the credentials received via email.
+  - On the first successful login, the employee is prompted to change their default password (can be changed immediately or skipped to change later in Settings/Profile).
+
+### Quick Login Configuration
+After the first successful authentication, the user is prompted to set up one or more Quick Login methods:
+- **Biometrics**: Fingerprint or Face ID (based on device hardware support).
+- **PIN Code**: 4-digit or 6-digit security PIN.
+- **Face Lock**: Device-supported facial recognition.
+
+### Daily Authentication Routine
+- On subsequent app launches, the user authenticates via Quick Login (Biometric / PIN / Face Lock).
+- A fallback option ("Use Password Instead") is always available for full credential authentication.
+- **Security Policies**:
+  - Preferences and encrypted credentials are held securely in local storage.
+  - Quick login options can be toggled on/off in Settings.
+  - Re-authentication with full password is required if the session expires or the password is changed.
+
+---
+
+## 4. Attendance & Workday Lifecycle
+
+### Attendance Lifecycle
+1. **Start Attendance**: At the beginning of the workday, the employee slides to mark attendance.
+2. **Active Workday**: Attendance session becomes active. Break features and location tracking (if enabled) are initiated.
+3. **Close Attendance**: At the end of the day (EOD), the employee slides/taps to close attendance.
+   - Displays a confirmation popup before closing.
+   - Stops tracking, finalizes the session, and locks further attendance/break actions for the day.
+
+### Break Management Flow
+- The **Break** option activates **only after** attendance has been started for the day.
+- **Workflow**:
+  - **Start Attendance** $\rightarrow$ Break option enabled.
+  - Tap **Start Break** $\rightarrow$ Break timer starts; location tracking pauses.
+  - During Break $\rightarrow$ Only **End Break** action is available.
+  - Tap **End Break** $\rightarrow$ Employee can choose to start another break or Close Attendance; location tracking resumes.
+  - **Close Attendance** $\rightarrow$ Confirmation popup; attendance session completes.
+
+---
+
+## 5. Company-Configurable Attendance Policies
+
+Companies can customize attendance verification policies per employee or department. The app dynamically adapts the attendance UI based on the active company configuration.
+
+### Policy Configurations
+- **Attendance Only**: Simple slide gesture to mark attendance.
+- **Attendance + Image Verification**: Requires photo evidence before marking attendance.
+  - *Selfie*: Front camera selfie photo.
+  - *Odometer*: Photo of vehicle odometer for travel/mileage tracking.
+  - *Both*: Both selfie and odometer photos required.
+- **Attendance + Live Tracking**: Automatically triggers continuous background location tracking during working hours.
+- **Attendance + Travel Mode**: Prompts employee to select their conveyance mode upon marking attendance.
+- **Combined Policies**: Any hybrid combination of the above settings.
+
+### Travel Modes
+When Travel Mode selection is enabled, employees choose their mode of transit:
+- Bike
+- Car
+- Public Transport
+- Walking
+- Office / No Travel
+
+---
+
+## 6. Background Location Tracking & Sync Service
+
+### Continuous Location Tracking
+- Starts immediately upon marking attendance (if tracking policy is enabled).
+- Runs as an Android **Foreground Service** (`flutter_background_service`).
+- Continuously collects location data across all app states:
+  - App Open
+  - Background
   - Minimized
-  - Closed (where Android allows)
-- Automatically restart tracking after device reboot if attendance is still active.
-- Store location data locally when internet is unavailable.
-- Automatically synchronize pending records when connectivity is restored.
-- Build the application using scalable architecture suitable for enterprise applications.
+  - App Closed / Terminated (where Android platform policies permit)
+- **Break Time Handling**: Tracking **automatically pauses/stops** during break time and **resumes** when the break ends.
+- Collected Telemetry: Latitude, Longitude, Accuracy, Speed, Bearing, Altitude, Timestamp, Battery Level.
+
+### Reboot Recovery
+- Registers `BOOT_COMPLETED` receiver.
+- Checks local database for active attendance session on device reboot.
+- Automatically restarts background tracking service without requiring manual app launch by the employee.
+
+### Offline-First Storage & Synchronization
+- **Local Storage (Source of Truth)**: All location points and attendance actions are written locally to the **Drift (SQLite)** database first.
+- **Sync Service**: Dedicated background module using `connectivity_plus` to monitor network state.
+- **Auto-Sync**: Automatically pushes unsynced records to the cloud when internet connection is active, marking uploaded records as synced. Includes retry and deduplication mechanisms.
 
 ---
 
-# Platform
+## 7. Architecture & Technology Stack
 
-- Flutter (Latest Stable)
-- Dart (Latest Version)
-- Android Only (POC)
-- Material 3 Design
+### Core Stack
+- **Framework**: Flutter (Latest Stable) / Dart
+- **Target OS**: Android (Material 3 Design)
+- **Architecture Pattern**: Clean Architecture with Feature-Based Folder Structure
+- **State Management**: `flutter_bloc` & `equatable`
+- **Dependency Injection**: `get_it`
+- **Local Storage**: Drift Database (SQLite) & SharedPreferences
+- **Backend**: Offline-First with temporary Firebase backend (Core, Auth, Firestore), structured for seamless future migration to REST APIs.
 
----
-
-# Architecture
-
-The application must follow **Clean Architecture** with a Feature-Based Folder Structure.
-
-Use the following layers:
-
-```
-Presentation Layer
-│
-├── Screens
-├── Widgets
-├── BLoC
-│
-Domain Layer
-│
-├── Entities
-├── Repositories
-├── Use Cases
-│
-Data Layer
-│
-├── Models
-├── Local Data Source
-├── Remote Data Source
-├── Repository Implementation
-│
-Core
-│
-├── Services
-├── Utilities
-├── Helpers
-├── Constants
-```
+### Main Packages
+- `flutter_bloc`, `equatable`, `get_it`
+- `firebase_core`, `firebase_auth`, `cloud_firestore`
+- `drift`, `path_provider`, `shared_preferences`
+- `flutter_background_service`, `geolocator`, `permission_handler`
+- `connectivity_plus`, `http`, `logger`, `intl`
 
 ---
 
-# State Management
-
-Use:
-
-- flutter_bloc
-- equatable
-
----
-
-# Dependency Injection
-
-Use:
-
-- get_it
-
----
-
-# Local Storage
-
-Use:
-
-- Drift Database
-- SharedPreferences
-
-Drift should be used for storing attendance and location data.
-
-SharedPreferences should be used only for lightweight application settings.
-
----
-
-# Temporary Backend
-
-Since backend APIs are not yet available, use Firebase.
-
-Firebase Services:
-
-- Firebase Core
-- Firebase Authentication
-- Cloud Firestore
-
-The architecture must allow replacing Firebase with REST APIs later by changing only the Remote Data Source.
-
----
-
-# Core Modules
-
-## 1. Authentication
-
-Initially support:
-
-- Anonymous Login
-
-Later support:
-
-- Employee Login
-- JWT Authentication
-- Company Login
-
----
-
-## 2. Attendance
-
-Employee should be able to:
-
-- Mark Attendance
-- View Current Attendance Status
-- Check Out
-
-Attendance should generate an Attendance Session.
-
-Tracking begins immediately after attendance is marked.
-
-Tracking stops only after Check Out.
-
----
-
-## 3. Background Tracking
-
-After attendance:
-
-Start a Foreground Service.
-
-Continue collecting location every configurable interval.
-
-Default interval:
-
-30 seconds.
-
-Tracking should continue when:
-
-- App Open
-- Background
-- Minimized
-- Closed (where Android permits)
-
----
-
-## 4. Device Restart Recovery
-
-If the phone restarts:
-
-- Receive BOOT_COMPLETED
-- Read saved tracking state
-- Restart tracking automatically
-- Continue uploading locations
-
-The employee should not need to manually reopen the app.
-
----
-
-## 5. Offline Support
-
-Application must continue functioning without internet.
-
-If internet is unavailable:
-
-- Continue location tracking
-- Save attendance locally
-- Save every GPS point locally
-- Never lose data
-
-When internet becomes available:
-
-- Automatically upload pending data
-- Mark uploaded records as synced
-
----
-
-## 6. Synchronization
-
-Create a dedicated Sync Service.
-
-Responsibilities:
-
-- Detect connectivity
-- Upload pending attendance
-- Upload pending locations
-- Retry failed uploads
-- Prevent duplicate uploads
-
-Synchronization should happen automatically.
-
----
-
-## 7. Location Tracking
-
-Collect:
-
-- Latitude
-- Longitude
-- Accuracy
-- Speed
-- Bearing
-- Altitude
-- Timestamp
-- Battery Percentage
-
-Use:
-
-- geolocator
-
----
-
-## 8. Permissions
-
-Request:
-
-- Fine Location
-- Background Location
-- Notification Permission
-- Ignore Battery Optimization (if required)
-
-Handle all denied permission cases gracefully.
-
----
-
-# Data Layer
-
-The application must follow an Offline-First Architecture.
-
-Every location must first be stored locally.
-
-Internet availability should never affect tracking.
-
-The local database is the source of truth.
-
-Firebase is used only as temporary cloud storage.
-
----
-
-# Local Database
-
-Use Drift.
-
-### Attendance Table
-
-- attendanceId
-- employeeId
-- checkInTime
-- checkOutTime
-- status
-- isTracking
-- createdAt
-
-### Location Table
-
-- id
-- attendanceId
-- latitude
-- longitude
-- accuracy
-- speed
-- bearing
-- altitude
-- batteryLevel
-- timestamp
-- isSynced
-
----
-
-# Firestore Collections
-
-employees
-
-attendance
-
-location_logs
-
----
-
-# Home Screen
-
-Simple UI.
-
-Display:
-
-- Employee Name (Dummy for now)
-- Attendance Status
-- Tracking Status
-- GPS Status
-- Internet Status
-- Current Latitude
-- Current Longitude
-- Pending Sync Count
-
-Buttons:
-
-- Mark Attendance
-- Check Out
-
----
-
-# Background Service
-
-Use:
-
-- flutter_background_service
-
-Responsibilities:
-
-- Receive GPS location
-- Save locally
-- Trigger synchronization
-- Continue running after app minimization
-- Recover after reboot
-
----
-
-# Repository Pattern
-
-Presentation
-
-↓
-
-Repository
-
-↓
-
-Local Database
-
-↓
-
-Firebase
-
-No screen should directly access Firebase.
-
----
-
-# Logging
-
-Use:
-
-- logger
-
-Log:
-
-- Login
-- Attendance
-- Check Out
-- Tracking Started
-- Tracking Stopped
-- GPS Update
-- Offline Save
-- Sync Started
-- Sync Completed
-- Sync Failed
-- Device Reboot
-- Service Restart
-
----
-
-# Connectivity
-
-Use:
-
-- connectivity_plus
-
-Detect:
-
-- Mobile Data
-- WiFi
-- Offline Mode
-
-Automatically trigger synchronization.
-
----
-
-# Packages
-
-## Architecture
-
-- flutter_bloc
-- equatable
-- get_it
-
-## Firebase
-
-- firebase_core
-- firebase_auth
-- cloud_firestore
-
-## Local Storage
-
-- drift
-- path_provider
-- shared_preferences
-
-## Background Services
-
-- flutter_background_service
-
-## Location
-
-- geolocator
-
-## Permissions
-
-- permission_handler
-
-## Connectivity
-
-- connectivity_plus
-
-## Network
-
-- http
-
-## Utilities
-
-- logger
-- intl
-
----
-
-# Folder Structure
+## 8. Directory & Layer Structure
 
 ```
 lib/
-
-core/
-    constants/
-    helpers/
-    services/
-    utils/
-
-data/
-    datasource/
-        local/
-        remote/
-    models/
-    repositories/
-
-domain/
-    entities/
-    repositories/
-    usecases/
-
-presentation/
-    bloc/
-    screens/
-    widgets/
-
-main.dart
+├── core/
+│   ├── constants/
+│   ├── helpers/
+│   ├── services/
+│   └── utils/
+├── data/
+│   ├── datasource/
+│   │   ├── local/
+│   │   └── remote/
+│   ├── models/
+│   └── repositories/
+├── domain/
+│   ├── entities/
+│   ├── repositories/
+│   └── usecases/
+├── presentation/
+│   ├── bloc/
+│   ├── screens/
+│   └── widgets/
+└── main.dart
 ```
 
 ---
 
-# Coding Standards
+## 9. Future Enhancements
 
-- Clean Architecture
-- SOLID Principles
-- Repository Pattern
-- Dependency Injection
-- Null Safety
-- Modular Development
-- Feature-Based Structure
-- Reusable Widgets
-- Proper Documentation
-- Production Ready Code
-
----
-
-# Future Features (Not Part of POC)
-
-The application architecture should support future implementation of:
-
-- Employee Login
-- Company Login
-- QR Attendance
-- Face Recognition Attendance
-- Geofencing
-- Shift Management
-- Work Schedule
-- Break Management
-- Leave Management
-- Holiday Calendar
-- Attendance History
-- Live Employee Tracking
-- Admin Dashboard
-- Reports
-- Analytics
-- Payroll
-- Expense Management
-- Team Management
-- Push Notifications
-- Multi Organization Support
-- Role Based Access Control
-- Web Admin Panel
-
----
-
-# POC Success Criteria
-
-The POC will be considered successful if it demonstrates the following:
-
-- Employee can mark attendance.
-- Attendance creates a tracking session.
-- Background location tracking starts immediately.
-- Tracking continues while the app is minimized.
-- Tracking automatically resumes after device reboot.
-- Tracking continues even if internet is unavailable.
-- Every location is stored locally before syncing.
-- Pending locations synchronize automatically once internet is restored.
-- Check Out successfully stops tracking.
-- No location data is lost.
-- The architecture is scalable, maintainable, and ready for enterprise-level expansion.
-
----
-
-# Important Notes
-
-- This is an Android-only Proof of Concept.
-- Focus on reliability rather than UI design.
-- UI should be simple, clean, and functional.
-- Firebase is a temporary backend and will be replaced with REST APIs in the future.
-- The project should be developed with scalability in mind, ensuring that new enterprise modules can be added without major architectural changes.
-- Every feature should be implemented in a modular manner with clear separation of concerns.
- */
+- Multi-channel credential dispatch (SMS / WhatsApp)
+- Face Recognition & QR-based attendance verification
+- Geofencing and dynamic office perimeters
+- Shift, leave, and holiday management
+- Admin analytics, live employee tracking map, and payroll integration
+*/

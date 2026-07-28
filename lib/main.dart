@@ -11,8 +11,11 @@ import 'presentation/bloc/attendance_event.dart';
 import 'presentation/bloc/auth_bloc.dart';
 import 'presentation/bloc/auth_event.dart';
 import 'presentation/bloc/auth_state.dart';
-import 'presentation/screens/home_screen.dart';
-import 'presentation/screens/login_screen.dart';
+import 'presentation/screens/company/company_dashboard_screen.dart';
+import 'presentation/screens/company/company_pending_screen.dart';
+import 'presentation/screens/employee/first_login_setup_screen.dart';
+import 'presentation/screens/employee/employee_dashboard.dart';
+import 'presentation/screens/role_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,7 +58,7 @@ class AttendanceApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'Attendance & Tracking POC',
+        title: 'HRMS Attendance System',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
@@ -71,10 +74,22 @@ class AttendanceApp extends StatelessWidget {
                 body: Center(child: CircularProgressIndicator()),
               );
             }
-            if (state is AuthenticatedState) {
-              return HomeScreen(user: state.user);
+
+            if (state is CompanyPendingApprovalState) {
+              return CompanyPendingScreen(user: state.user);
             }
-            return const LoginScreen();
+
+            if (state is AuthenticatedState) {
+              if (state.user.isCompany) {
+                return CompanyDashboardScreen(user: state.user);
+              }
+              if (state.user.isFirstLogin) {
+                return FirstLoginSetupScreen(user: state.user);
+              }
+              return EmployeeDashboardScreen(user: state.user);
+            }
+
+            return const RoleSelectionScreen();
           },
         ),
       ),
