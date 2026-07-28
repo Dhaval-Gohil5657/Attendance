@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/di/injection_container.dart';
 import 'core/services/background_location_service.dart';
@@ -13,8 +14,9 @@ import 'presentation/bloc/auth_event.dart';
 import 'presentation/bloc/auth_state.dart';
 import 'presentation/screens/company/company_dashboard_screen.dart';
 import 'presentation/screens/company/company_pending_screen.dart';
-import 'presentation/screens/employee/first_login_setup_screen.dart';
 import 'presentation/screens/employee/employee_dashboard.dart';
+import 'presentation/screens/employee/first_login_setup_screen.dart';
+import 'presentation/screens/employee/quick_login_screen.dart';
 import 'presentation/screens/role_selection_screen.dart';
 
 void main() async {
@@ -80,13 +82,39 @@ class AttendanceApp extends StatelessWidget {
             }
 
             if (state is AuthenticatedState) {
-              if (state.user.isCompany) {
-                return CompanyDashboardScreen(user: state.user);
-              }
               if (state.user.isFirstLogin) {
                 return FirstLoginSetupScreen(user: state.user);
               }
-              return EmployeeDashboardScreen(user: state.user);
+
+              if (isQuickLoginUnlockedThisSession) {
+                if (state.user.isCompany) {
+                  return CompanyDashboardScreen(user: state.user);
+                }
+                return EmployeeDashboardScreen(user: state.user);
+              }
+
+              return FutureBuilder<bool>(
+                future: SharedPreferences.getInstance().then(
+                  (prefs) => prefs.getBool('quick_login_enabled_${state.user.uid}') ?? false,
+                ),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.data == true) {
+                    return QuickLoginScreen(user: state.user);
+                  }
+
+                  if (state.user.isCompany) {
+                    return CompanyDashboardScreen(user: state.user);
+                  }
+
+                  return EmployeeDashboardScreen(user: state.user);
+                },
+              );
             }
 
             return const RoleSelectionScreen();

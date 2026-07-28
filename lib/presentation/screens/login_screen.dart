@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/entities/employee_entity.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import 'company/company_register_screen.dart';
+import 'employee/quick_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String initialRole; // 'company' or 'employee'
@@ -26,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _hasQuickLogin = false;
 
   @override
   void initState() {
@@ -39,6 +43,23 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text = 'employee@gmail.com';
         _passwordController.text = '123456';
       }
+    }
+
+    _checkQuickLoginAvailability();
+  }
+
+  Future<void> _checkQuickLoginAvailability() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isActive = prefs.getBool('has_quick_login_active') ?? false;
+    final cachedUid = prefs.getString('cached_user_uid') ?? prefs.getString('last_quick_login_uid');
+
+    if (cachedUid != null) {
+      final isUserEnabled = prefs.getBool('quick_login_enabled_$cachedUid') ?? false;
+      if (mounted) {
+        setState(() => _hasQuickLogin = isActive || isUserEnabled);
+      }
+    } else if (isActive && mounted) {
+      setState(() => _hasQuickLogin = true);
     }
   }
 
@@ -59,6 +80,42 @@ class _LoginScreenState extends State<LoginScreen> {
               role: widget.initialRole,
             ),
           );
+    }
+  }
+
+  void _openQuickLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('last_quick_login_uid') ?? prefs.getString('cached_user_uid');
+    final email = prefs.getString('last_quick_login_email') ?? prefs.getString('cached_user_email');
+    final name = prefs.getString('last_quick_login_name') ?? prefs.getString('cached_user_name');
+    final role = prefs.getString('last_quick_login_role') ?? widget.initialRole;
+    final companyId = prefs.getString('last_quick_login_company_id') ?? prefs.getString('cached_company_id');
+    final companyName = prefs.getString('last_quick_login_company_name') ?? prefs.getString('cached_company_name');
+
+    if (uid != null && email != null && mounted) {
+      final quickUser = EmployeeEntity(
+        uid: uid,
+        email: email,
+        name: name ?? email.split('@').first,
+        role: role,
+        companyId: companyId,
+        companyName: companyName,
+        isApproved: true,
+        isFirstLogin: false,
+      );
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => QuickLoginScreen(user: quickUser),
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in with email and password first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 
@@ -200,6 +257,22 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Quick PIN / Biometric Button if configured
+                      if (_hasQuickLogin) ...[
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.fingerprint),
+                          label: const Text('QUICK PIN / BIOMETRIC UNLOCK'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF047857),
+                            side: const BorderSide(color: Color(0xFF047857)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: _openQuickLogin,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
                       // Register Company Button if Company mode selected
                       if (isCompany) ...[

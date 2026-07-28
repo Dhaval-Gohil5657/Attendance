@@ -1,16 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../domain/entities/employee_entity.dart';
 import '../../bloc/auth_bloc.dart';
 import '../../bloc/auth_event.dart';
+import '../employee/quick_login_setup_screen.dart';
 
-class CompanyProfileScreen extends StatelessWidget {
+class CompanyProfileScreen extends StatefulWidget {
   final EmployeeEntity user;
 
   const CompanyProfileScreen({super.key, required this.user});
 
+  @override
+  State<CompanyProfileScreen> createState() => _CompanyProfileScreenState();
+}
+
+class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -24,24 +31,18 @@ class CompanyProfileScreen extends StatelessWidget {
         child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           future: FirebaseFirestore.instance
               .collection('companies')
-              .doc(user.companyId ?? user.uid)
+              .doc(widget.user.companyId ?? widget.user.uid)
               .get(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
-
             final data = snapshot.data?.data();
 
-            final companyName = data?['companyName'] ?? user.name;
-            final ownerName = data?['ownerName'] ?? user.name;
-            final email = data?['email'] ?? user.email;
+            final companyName = data?['companyName'] ?? widget.user.name;
+            final ownerName = data?['ownerName'] ?? widget.user.name;
+            final email = data?['email'] ?? widget.user.email;
             final phone = data?['phone'] ?? 'Not provided';
             final gstNumber = data?['gstNumber'] ?? 'Not provided';
             final address = data?['address'] ?? 'Not provided';
-            final isApproved = data?['isApproved'] ?? user.isApproved;
+            final isApproved = data?['isApproved'] ?? widget.user.isApproved;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
@@ -165,7 +166,77 @@ class CompanyProfileScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+
+                  const Text(
+                    'Security & Quick Login',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Quick Login Toggle Switch
+                  FutureBuilder<bool>(
+                    future: SharedPreferences.getInstance().then(
+                      (p) => p.getBool('quick_login_enabled_${widget.user.uid}') ?? false,
+                    ),
+                    builder: (context, pinSnapshot) {
+                      final isQuickLoginActive = pinSnapshot.data == true;
+
+                      return Card(
+                        color: Colors.white,
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          secondary: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.fingerprint_rounded, color: Colors.indigo.shade800),
+                          ),
+                          title: const Text(
+                            'Quick PIN & Biometrics',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                          subtitle: Text(
+                            isQuickLoginActive ? 'Quick unlock enabled' : 'Toggle to set up 4-digit PIN',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                          value: isQuickLoginActive,
+                          activeColor: Colors.indigo.shade800,
+                          onChanged: (bool value) async {
+                            if (value) {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => QuickLoginSetupScreen(user: widget.user),
+                                ),
+                              );
+                              if (mounted) setState(() {});
+                            } else {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setBool('quick_login_enabled_${widget.user.uid}', false);
+                              await prefs.setBool('has_quick_login_active', false);
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Quick PIN & Biometric Login Disabled.'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              if (mounted) setState(() {});
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
                   // Logout Button inside Profile
                   ElevatedButton.icon(

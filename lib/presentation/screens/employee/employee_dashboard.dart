@@ -8,8 +8,6 @@ import '../../../domain/entities/employee_entity.dart';
 import '../../bloc/attendance_bloc.dart';
 import '../../bloc/attendance_event.dart';
 import '../../bloc/attendance_state.dart';
-import '../../bloc/auth_bloc.dart';
-import '../../bloc/auth_event.dart';
 import 'employee_profile_screen.dart';
 
 class EmployeeDashboardScreen extends StatelessWidget {
