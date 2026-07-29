@@ -146,6 +146,7 @@ class _QuickLoginScreenState extends State<QuickLoginScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
+          titleSpacing: 20,
           title: const Text('Quick PIN & Biometric Unlock'),
           backgroundColor: Colors.indigo.shade800,
           foregroundColor: Colors.white,

@@ -212,14 +212,14 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     emit(state.copyWith(isLoading: true, errorMessage: () => null));
 
     try {
-      await repository.checkOut(attendanceId: state.activeAttendance!.attendanceId);
+      final updatedAtt = await repository.checkOut(attendanceId: state.activeAttendance!.attendanceId);
       await BackgroundLocationService.stopTracking();
 
       final count = await repository.getUnsyncedLocationsCount();
 
       emit(state.copyWith(
         isLoading: false,
-        activeAttendance: () => null,
+        activeAttendance: () => updatedAtt,
         unsyncedCount: count,
         successMessage: () => 'Checked Out successfully. Location tracking stopped.',
       ));

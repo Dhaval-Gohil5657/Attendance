@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/repositories/auth_repository.dart';
+import '../screens/employee/quick_login_screen.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -159,6 +160,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoadingState());
+    isQuickLoginUnlockedThisSession = false;
     await authRepository.logout();
     emit(const UnauthenticatedState());
   }

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:logger/logger.dart';
@@ -105,6 +106,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       checkOutTime: DateTime.now(),
       status: 'checked_out',
       isTracking: false,
+      travelMode: current.travelMode,
       createdAt: current.createdAt,
     );
 
@@ -138,6 +140,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       checkOutTime: current.checkOutTime,
       status: 'on_break',
       isTracking: false,
+      travelMode: current.travelMode,
       createdAt: current.createdAt,
     );
 
@@ -169,6 +172,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       checkOutTime: current.checkOutTime,
       status: 'active',
       isTracking: true,
+      travelMode: current.travelMode,
       createdAt: current.createdAt,
     );
 
@@ -190,7 +194,35 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   @override
   Future<AttendanceEntity?> getActiveAttendance({String? employeeId}) async {
-    return await localDataSource.getActiveAttendance(employeeId: employeeId);
+    final local = await localDataSource.getActiveAttendance(employeeId: employeeId);
+    if (local != null) return local;
+
+    if (employeeId != null && employeeId.isNotEmpty) {
+      final connectivityResult = await connectivity.checkConnectivity();
+      if (_hasNetworkConnection(connectivityResult)) {
+        try {
+          final now = DateTime.now();
+          final startOfDay = DateTime(now.year, now.month, now.day);
+          final snapshot = await FirebaseFirestore.instance
+              .collection('attendance')
+              .where('employeeId', isEqualTo: employeeId)
+              .get();
+
+          final docs = snapshot.docs.map((d) => AttendanceModel.fromFirestore(d.data())).toList();
+          final todayDocs = docs.where((a) => a.createdAt.isAfter(startOfDay) || a.checkInTime.isAfter(startOfDay)).toList();
+          todayDocs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          if (todayDocs.isNotEmpty) {
+            final latestRemote = todayDocs.first;
+            await localDataSource.saveAttendance(latestRemote);
+            return latestRemote;
+          }
+        } catch (e) {
+          logger.w('Failed to fetch remote active attendance: $e');
+        }
+      }
+    }
+    return null;
   }
 
   @override

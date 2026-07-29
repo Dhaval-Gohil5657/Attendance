@@ -8,6 +8,7 @@ class SlideToConfirmWidget extends StatefulWidget {
   final Color textColor;
   final VoidCallback onConfirmed;
   final double height;
+  final bool isReversed; // false = Left-to-Right, true = Right-to-Left
 
   const SlideToConfirmWidget({
     super.key,
@@ -18,6 +19,7 @@ class SlideToConfirmWidget extends StatefulWidget {
     this.textColor = Colors.white,
     required this.onConfirmed,
     this.height = 55.0,
+    this.isReversed = false,
   });
 
   @override
@@ -40,6 +42,7 @@ class _SlideToConfirmWidgetState extends State<SlideToConfirmWidget>
           decoration: BoxDecoration(
             color: widget.backgroundColor,
             borderRadius: BorderRadius.circular(widget.height / 2),
+            border: Border.all(color: widget.sliderColor,width: 0.15),
             boxShadow: [
               BoxShadow(
                 color: widget.backgroundColor.withValues(alpha: 0.3),
@@ -51,19 +54,26 @@ class _SlideToConfirmWidgetState extends State<SlideToConfirmWidget>
           child: Stack(
             children: [
               // Sliding track fill color
-              Container(
+              Positioned(
+                left: widget.isReversed ? null : 0,
+                right: widget.isReversed ? 0 : null,
+                top: 0,
+                bottom: 0,
                 width: _dragValue + widget.height,
-                height: widget.height,
-                decoration: BoxDecoration(
-                  color: widget.sliderColor.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(widget.height / 2),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: widget.sliderColor.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(widget.height / 2),
+                  ),
                 ),
               ),
 
               // Hint text padded so it is never covered by the resting slider button
               Positioned.fill(
                 child: Padding(
-                  padding: EdgeInsets.only(left: widget.height, right: 12.0),
+                  padding: widget.isReversed
+                      ? EdgeInsets.only(right: widget.height, left: 12.0)
+                      : EdgeInsets.only(left: widget.height, right: 12.0),
                   child: Align(
                     alignment: Alignment.center,
                     child: Opacity(
@@ -71,27 +81,49 @@ class _SlideToConfirmWidgetState extends State<SlideToConfirmWidget>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              widget.text,
-                              style: TextStyle(
-                                color: widget.textColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13.5,
-                                letterSpacing: 1.0,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.keyboard_double_arrow_right_rounded,
-                            color: widget.textColor.withValues(alpha: 0.8),
-                            size: 18,
-                          ),
-                        ],
+                        children: widget.isReversed
+                            ? [
+                                Icon(
+                                  Icons.keyboard_double_arrow_left_rounded,
+                                  color: widget.textColor.withValues(alpha: 0.8),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    widget.text,
+                                    style: TextStyle(
+                                      color: widget.textColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13.5,
+                                      letterSpacing: 1.0,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ]
+                            : [
+                                Flexible(
+                                  child: Text(
+                                    widget.text,
+                                    style: TextStyle(
+                                      color: widget.textColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13.5,
+                                      letterSpacing: 1.0,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.keyboard_double_arrow_right_rounded,
+                                  color: widget.textColor.withValues(alpha: 0.8),
+                                  size: 18,
+                                ),
+                              ],
                       ),
                     ),
                   ),
@@ -100,14 +132,16 @@ class _SlideToConfirmWidgetState extends State<SlideToConfirmWidget>
 
               // Draggable Slider Button
               Positioned(
-                left: _dragValue,
+                left: widget.isReversed ? null : _dragValue,
+                right: widget.isReversed ? _dragValue : null,
                 top: 0,
                 bottom: 0,
                 child: GestureDetector(
                   onHorizontalDragUpdate: (details) {
                     if (_isConfirmed) return;
                     setState(() {
-                      _dragValue += details.delta.dx;
+                      final delta = widget.isReversed ? -details.delta.dx : details.delta.dx;
+                      _dragValue += delta;
                       _dragValue = _dragValue.clamp(0.0, maxDrag);
                     });
                   },

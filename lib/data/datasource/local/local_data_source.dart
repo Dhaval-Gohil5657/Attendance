@@ -25,9 +25,17 @@ class LocalDataSourceImpl implements LocalDataSource {
 
   @override
   Future<AttendanceModel?> getActiveAttendance({String? employeeId}) async {
-    final data = await database.getActiveAttendance(employeeId: employeeId);
-    if (data == null) return null;
-    return AttendanceModel.fromDrift(data);
+    final activeData = await database.getActiveAttendance(employeeId: employeeId);
+    if (activeData != null) {
+      return AttendanceModel.fromDrift(activeData);
+    }
+    if (employeeId != null && employeeId.isNotEmpty) {
+      final todayData = await database.getLatestAttendanceToday(employeeId: employeeId);
+      if (todayData != null) {
+        return AttendanceModel.fromDrift(todayData);
+      }
+    }
+    return null;
   }
 
   @override

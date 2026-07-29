@@ -44,13 +44,31 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
-            title: const Text('Company Portal'),
+            titleSpacing: 0,
+            title: Row(
+              children: [
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.corporate_fare_rounded, color: Colors.white, size: 25),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Company Workspace',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+              ],
+            ),
             backgroundColor: Colors.indigo.shade800,
             foregroundColor: Colors.white,
           ),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

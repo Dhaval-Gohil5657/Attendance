@@ -89,6 +89,21 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
+  Future<AttendanceData?> getLatestAttendanceToday({required String employeeId}) {
+    if (employeeId.trim().isEmpty) return Future.value(null);
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    return (select(attendanceTable)
+          ..where((tbl) =>
+              tbl.employeeId.equals(employeeId) &
+              tbl.createdAt.isBiggerOrEqualValue(startOfDay))
+          ..orderBy([
+            (tbl) => OrderingTerm(expression: tbl.createdAt, mode: OrderingMode.desc)
+          ])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<AttendanceData?> getAttendanceById(String id) {
     return (select(attendanceTable)
           ..where((tbl) => tbl.attendanceId.equals(id)))

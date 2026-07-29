@@ -43,22 +43,28 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
-        title: const Text(
-          'Attendance & Live Tracking',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            const SizedBox(width: 16),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.badge_rounded, color: Colors.white, size: 25),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Employee Workspace',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+          ],
         ),
         elevation: 0,
         backgroundColor: Colors.indigo.shade800,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'Sync Now',
-            onPressed: () {
-              context.read<AttendanceBloc>().add(const SyncNowEvent(isManualSync: true));
-            },
-          ),
-        ],
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -95,11 +101,13 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
               }
 
               final activeAttendance = state.activeAttendance;
-              final isActive = activeAttendance != null;
+              final isCheckedIn = activeAttendance != null &&
+                  (activeAttendance.status == 'active' || activeAttendance.status == 'on_break');
+              final isCheckedOut = activeAttendance != null && activeAttendance.status == 'checked_out';
               final isOnBreak = activeAttendance?.status == 'on_break';
 
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -109,12 +117,12 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                     const SizedBox(height: 16),
 
                     // 2. PRIMARY ACTION CONTROLS
-                    _buildActionControls(context, isActive, isOnBreak, enableTravelMode),
+                    _buildActionControls(context, isCheckedIn, isCheckedOut, isOnBreak, enableTravelMode),
 
                     const SizedBox(height: 20),
 
                     // 3. Main Attendance Status & Dynamic Timer Banner
-                    _buildAttendanceStatusBanner(context, isActive, isOnBreak, state, enableTravelMode),
+                    _buildAttendanceStatusBanner(context, isCheckedIn, isCheckedOut, isOnBreak, state, enableTravelMode),
 
                     const SizedBox(height: 16),
 
@@ -206,11 +214,66 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     );
   }
 
-  Widget _buildActionControls(BuildContext context, bool isActive, bool isOnBreak, bool enableTravelMode) {
+  Widget _buildActionControls(
+    BuildContext context,
+    bool isCheckedIn,
+    bool isCheckedOut,
+    bool isOnBreak,
+    bool enableTravelMode,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!isActive) ...[
+        if (isCheckedOut) ...[
+          // Workday Completed Pill Badge (Matching 55px Slider Size & Handle Shape)
+          Container(
+            height: 55,
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(27.5),
+              border: Border.all(color: Colors.blue.shade200,width: 0.6),
+            ),
+            child: Row(
+              children: [
+                // Flush 55px Circle Handle at Far Left
+                Container(
+                  width: 53.5,
+                  height: 53.5,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade900,
+                    shape: BoxShape.circle,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'WORKDAY COMPLETED FOR TODAY',
+                    style: TextStyle(
+                      color: Colors.blue.shade900,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      letterSpacing: 0.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+            ),
+          ),
+        ] else if (!isCheckedIn) ...[
           if (enableTravelMode) ...[
             // Travel Mode Selection Card
             Container(
@@ -303,13 +366,14 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Slide to Close Attendance with EOD Popup Confirmation
+          // Slide to Close Attendance with EOD Popup Confirmation (Right-to-Left Reverse Slide)
           SlideToConfirmWidget(
             text: 'SLIDE TO CLOSE ATTENDANCE',
             icon: Icons.stop_rounded,
             backgroundColor: Colors.red.shade50,
             sliderColor: Colors.red.shade700,
             textColor: Colors.red.shade900,
+            isReversed: true,
             onConfirmed: () {
               _showCheckOutConfirmationDialog(context);
             },
@@ -368,7 +432,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
         // Internet Status Chip
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
             decoration: BoxDecoration(
               color: state.isOnline ? Colors.green.shade50 : Colors.orange.shade50,
               borderRadius: BorderRadius.circular(12),
@@ -381,14 +445,15 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 Icon(
                   state.isOnline ? Icons.wifi : Icons.wifi_off,
                   color: state.isOnline ? Colors.green.shade700 : Colors.orange.shade700,
-                  size: 20,
+                  size: 18,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     state.isOnline ? 'Online' : 'Offline',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 12,
                       color: state.isOnline ? Colors.green.shade800 : Colors.orange.shade800,
                     ),
                   ),
@@ -397,43 +462,68 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
 
-        // Unsynced Items Count Chip (Tappable for Manual Sync)
+        // Unsynced Items Count Chip
         Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            decoration: BoxDecoration(
+              color: state.unsyncedCount > 0 ? Colors.amber.shade50 : Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: state.unsyncedCount > 0 ? Colors.amber.shade300 : Colors.blue.shade200,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cloud_upload_outlined,
+                  color: state.unsyncedCount > 0 ? Colors.amber.shade900 : Colors.blue.shade700,
+                  size: 18,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    'Pending: ${state.unsyncedCount}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.5,
+                      color: state.unsyncedCount > 0 ? Colors.amber.shade900 : Colors.blue.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Sync Now Button (Right side of Online & Pending status)
+        Material(
+          color: Colors.transparent,
           child: InkWell(
             onTap: () {
               context.read<AttendanceBloc>().add(const SyncNowEvent(isManualSync: true));
             },
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: state.unsyncedCount > 0 ? Colors.amber.shade50 : Colors.blue.shade50,
+                color: Colors.indigo.shade600,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: state.unsyncedCount > 0 ? Colors.amber.shade300 : Colors.blue.shade200,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.cloud_upload_outlined,
-                    color: state.unsyncedCount > 0 ? Colors.amber.shade900 : Colors.blue.shade700,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Pending: ${state.unsyncedCount}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: state.unsyncedCount > 0 ? Colors.amber.shade900 : Colors.blue.shade900,
-                      ),
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.indigo.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
+              ),
+              child: const Icon(
+                Icons.sync_rounded,
+                color: Colors.white,
+                size: 20,
               ),
             ),
           ),
@@ -444,27 +534,40 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
 
   Widget _buildAttendanceStatusBanner(
     BuildContext context,
-    bool isActive,
+    bool isCheckedIn,
+    bool isCheckedOut,
     bool isOnBreak,
     AttendanceState state,
     bool enableTravelMode,
   ) {
-    final checkInFormatted = state.activeAttendance != null
-        ? DateFormat('hh:mm a').format(state.activeAttendance!.checkInTime)
+    final active = state.activeAttendance;
+    final checkInFormatted = active != null
+        ? DateFormat('hh:mm a').format(active.checkInTime)
+        : '--:--';
+    final checkOutFormatted = (active != null && active.checkOutTime != null)
+        ? DateFormat('hh:mm a').format(active.checkOutTime!)
         : '--:--';
 
-    String statusText = 'CHECKED OUT';
-    Color badgeColor = Colors.grey.shade600;
-    Color badgeBg = Colors.grey.shade200;
+    String statusText = 'NOT STARTED';
+    Color badgeColor = Colors.grey.shade700;
+    Color badgeBg = Colors.grey.shade100;
+    String bannerTitle = 'Not Checked In Today';
 
     if (isOnBreak) {
       statusText = 'ON BREAK';
       badgeColor = Colors.amber.shade900;
-      badgeBg = Colors.amber.shade100;
-    } else if (isActive) {
-      statusText = 'ACTIVE';
-      badgeColor = Colors.green.shade800;
-      badgeBg = Colors.green.shade100;
+      badgeBg = Colors.amber.shade50;
+      bannerTitle = 'On Break (Tracking Paused)';
+    } else if (isCheckedIn) {
+      statusText = 'CHECKED IN';
+      badgeColor = const Color(0xFF047857);
+      badgeBg = const Color(0xFFECFDF5);
+      bannerTitle = 'Workday Active (Live Tracking)';
+    } else if (isCheckedOut) {
+      statusText = 'CHECKED OUT';
+      badgeColor = Colors.blue.shade900;
+      badgeBg = Colors.blue.shade50;
+      bannerTitle = 'Workday Completed';
     }
 
     return Container(
@@ -516,16 +619,14 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            isOnBreak
-                ? 'On Break (Tracking Paused)'
-                : (isActive ? 'Workday Active (Live Tracking)' : 'Not Checked In'),
+            bannerTitle,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
-          if (isActive && state.activeAttendance != null) ...[
+          if ((isCheckedIn || isCheckedOut) && active != null) ...[
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -533,29 +634,43 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Check-in Time', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                    Text('Check-in', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                     const SizedBox(height: 2),
-                    Text(checkInFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(checkInFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 ),
+                if (isCheckedOut)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text('Check-out', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text(checkOutFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
                 if (enableTravelMode)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text('Travel Mode', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      Text('Mode', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                       const SizedBox(height: 2),
                       Text(
-                        state.activeAttendance!.travelMode,
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.indigo.shade900),
+                        active.travelMode,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo.shade900),
                       ),
                     ],
                   ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Workday Duration', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                    Text('Duration', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                     const SizedBox(height: 2),
-                    _WorkdayTimerWidget(startTime: state.activeAttendance!.checkInTime),
+                    isCheckedOut
+                        ? Text(
+                            _formatDuration(active.checkOutTime!.difference(active.checkInTime)),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo.shade900),
+                          )
+                        : _WorkdayTimerWidget(startTime: active.checkInTime),
                   ],
                 ),
               ],
@@ -564,6 +679,15 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    }
+    return '${minutes}m';
   }
 
   Widget _buildLocationCard(AttendanceState state, bool isOnBreak) {

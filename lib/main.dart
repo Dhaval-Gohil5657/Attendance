@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/di/injection_container.dart';
 import 'core/services/background_location_service.dart';
 import 'core/services/sync_service.dart';
+import 'domain/entities/employee_entity.dart';
 import 'domain/repositories/attendance_repository.dart';
 import 'presentation/bloc/attendance_bloc.dart';
 import 'presentation/bloc/attendance_event.dart';
@@ -68,6 +69,13 @@ class AttendanceApp extends StatelessWidget {
             seedColor: Colors.indigo,
             brightness: Brightness.light,
           ),
+          appBarTheme: const AppBarTheme(
+            titleSpacing: 0,
+            titleTextStyle: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),
+          ),
+          actionIconTheme: ActionIconThemeData(
+            backButtonIconBuilder: (context) => const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          ),
         ),
         home: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
@@ -76,6 +84,7 @@ class AttendanceApp extends StatelessWidget {
                     InitializeAttendance(employeeId: state.user.email),
                   );
             } else if (state is UnauthenticatedState) {
+              isQuickLoginUnlockedThisSession = false;
               context.read<AttendanceBloc>().add(
                     const InitializeAttendance(employeeId: null),
                   );
@@ -93,45 +102,81 @@ class AttendanceApp extends StatelessWidget {
             }
 
             if (state is AuthenticatedState) {
-              if (state.user.isFirstLogin) {
-                return FirstLoginSetupScreen(user: state.user);
-              }
-
-              if (isQuickLoginUnlockedThisSession) {
-                if (state.user.isCompany) {
-                  return CompanyDashboardScreen(user: state.user);
-                }
-                return EmployeeDashboardScreen(user: state.user);
-              }
-
-              return FutureBuilder<bool>(
-                future: SharedPreferences.getInstance().then(
-                  (prefs) => prefs.getBool('quick_login_enabled_${state.user.uid}') ?? false,
-                ),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  if (snapshot.data == true) {
-                    return QuickLoginScreen(user: state.user);
-                  }
-
-                  if (state.user.isCompany) {
-                    return CompanyDashboardScreen(user: state.user);
-                  }
-
-                  return EmployeeDashboardScreen(user: state.user);
-                },
-              );
+              return _AuthenticatedUserGateway(user: state.user);
             }
 
             return const RoleSelectionScreen();
           },
         ),
       ),
+    );
+  }
+}
+
+class _AuthenticatedUserGateway extends StatefulWidget {
+  final EmployeeEntity user;
+
+  const _AuthenticatedUserGateway({required this.user});
+
+  @override
+  State<_AuthenticatedUserGateway> createState() => _AuthenticatedUserGatewayState();
+}
+
+class _AuthenticatedUserGatewayState extends State<_AuthenticatedUserGateway> {
+  late Future<bool> _quickLoginEnabledFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _quickLoginEnabledFuture = _checkQuickLogin();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AuthenticatedUserGateway oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.uid != widget.user.uid) {
+      _quickLoginEnabledFuture = _checkQuickLogin();
+    }
+  }
+
+  Future<bool> _checkQuickLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('quick_login_enabled_${widget.user.uid}') ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.user.isFirstLogin) {
+      return FirstLoginSetupScreen(user: widget.user);
+    }
+
+    if (isQuickLoginUnlockedThisSession) {
+      if (widget.user.isCompany) {
+        return CompanyDashboardScreen(user: widget.user);
+      }
+      return EmployeeDashboardScreen(user: widget.user);
+    }
+
+    return FutureBuilder<bool>(
+      future: _quickLoginEnabledFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          if (widget.user.isCompany) {
+            return CompanyDashboardScreen(user: widget.user);
+          }
+          return EmployeeDashboardScreen(user: widget.user);
+        }
+
+        if (snapshot.data == true) {
+          return QuickLoginScreen(user: widget.user);
+        }
+
+        if (widget.user.isCompany) {
+          return CompanyDashboardScreen(user: widget.user);
+        }
+
+        return EmployeeDashboardScreen(user: widget.user);
+      },
     );
   }
 }

@@ -34,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    isQuickLoginUnlockedThisSession = false;
 
     if (kDebugMode) {
       if (widget.initialRole == 'company') {
@@ -85,6 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _openQuickLogin() async {
+    isQuickLoginUnlockedThisSession = false;
     final prefs = await SharedPreferences.getInstance();
     final uid = prefs.getString('last_quick_login_uid') ?? prefs.getString('cached_user_uid');
     final email = prefs.getString('last_quick_login_email') ?? prefs.getString('cached_user_email');
@@ -167,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: isCompany ? Colors.indigo.shade50 : Colors.teal.shade50,
                         ),
                         child: Icon(
-                          isCompany ? Icons.corporate_fare : Icons.person_pin_rounded,
+                          isCompany ? Icons.corporate_fare_rounded : Icons.person_pin_rounded,
                           size: 56,
                           color: primaryColor,
                         ),
