@@ -60,17 +60,12 @@ class AppDatabase extends _$AppDatabase {
       update(attendanceTable).replace(entry);
 
   Future<AttendanceData?> getActiveAttendance({String? employeeId}) {
-    if (employeeId != null && employeeId.isNotEmpty) {
-      return (select(attendanceTable)
-            ..where((tbl) =>
-                tbl.employeeId.equals(employeeId) &
-                tbl.status.isIn(['active', 'on_break']) &
-                tbl.checkOutTime.isNull())
-            ..limit(1))
-          .getSingleOrNull();
+    if (employeeId == null || employeeId.trim().isEmpty) {
+      return Future.value(null);
     }
     return (select(attendanceTable)
           ..where((tbl) =>
+              tbl.employeeId.equals(employeeId) &
               tbl.status.isIn(['active', 'on_break']) &
               tbl.checkOutTime.isNull())
           ..limit(1))

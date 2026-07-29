@@ -8,13 +8,29 @@ import 'company_live_tracking_screen.dart';
 import 'company_profile_screen.dart';
 import 'employee_list_screen.dart';
 
-class CompanyDashboardScreen extends StatelessWidget {
+import '../../widgets/quick_login_setup_dialog.dart';
+
+class CompanyDashboardScreen extends StatefulWidget {
   final EmployeeEntity user;
 
   const CompanyDashboardScreen({super.key, required this.user});
 
   @override
+  State<CompanyDashboardScreen> createState() => _CompanyDashboardScreenState();
+}
+
+class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      QuickLoginSetupDialog.checkAndPrompt(context, widget.user);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = widget.user;
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future: FirebaseFirestore.instance
           .collection('companies')

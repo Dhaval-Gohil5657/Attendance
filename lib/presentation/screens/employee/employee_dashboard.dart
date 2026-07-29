@@ -9,6 +9,7 @@ import '../../../domain/entities/employee_entity.dart';
 import '../../bloc/attendance_bloc.dart';
 import '../../bloc/attendance_event.dart';
 import '../../bloc/attendance_state.dart';
+import '../../widgets/quick_login_setup_dialog.dart';
 import '../../widgets/slide_to_confirm_widget.dart';
 import 'employee_profile_screen.dart';
 
@@ -31,6 +32,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       context.read<AttendanceBloc>().add(
             InitializeAttendance(employeeId: widget.user.email),
           );
+      QuickLoginSetupDialog.checkAndPrompt(context, widget.user);
     });
   }
 

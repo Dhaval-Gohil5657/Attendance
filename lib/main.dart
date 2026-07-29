@@ -69,7 +69,18 @@ class AttendanceApp extends StatelessWidget {
             brightness: Brightness.light,
           ),
         ),
-        home: BlocBuilder<AuthBloc, AuthState>(
+        home: BlocConsumer<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthenticatedState) {
+              context.read<AttendanceBloc>().add(
+                    InitializeAttendance(employeeId: state.user.email),
+                  );
+            } else if (state is UnauthenticatedState) {
+              context.read<AttendanceBloc>().add(
+                    const InitializeAttendance(employeeId: null),
+                  );
+            }
+          },
           builder: (context, state) {
             if (state is AuthLoadingState) {
               return const Scaffold(

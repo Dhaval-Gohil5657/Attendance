@@ -237,6 +237,9 @@ class _CompanyLiveTrackingScreenState extends State<CompanyLiveTrackingScreen> {
 
                       if (empId.isEmpty || empId == 'emp_dummy_001') continue;
 
+                      // ONLY include employees belonging to THIS company
+                      if (!employeeNamesMap.containsKey(empId)) continue;
+
                       // HIDE marker if employee is currently ON BREAK or CHECKED OUT
                       final status = employeeStatusMap[empId];
                       if (status == 'on_break' || status == 'checked_out') {
