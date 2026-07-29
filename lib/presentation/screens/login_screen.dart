@@ -73,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       FocusScope.of(context).unfocus();
+      isQuickLoginUnlockedThisSession = true;
       context.read<AuthBloc>().add(
             LoginSubmittedEvent(
               email: _emailController.text.trim(),

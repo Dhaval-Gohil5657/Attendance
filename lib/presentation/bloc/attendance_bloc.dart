@@ -28,6 +28,8 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     on<InitializeAttendance>(_onInitialize);
     on<CheckInEvent>(_onCheckIn);
     on<CheckOutEvent>(_onCheckOut);
+    on<StartBreakEvent>(_onStartBreak);
+    on<EndBreakEvent>(_onEndBreak);
     on<SyncNowEvent>(_onSyncNow);
     on<UpdateLocationDataEvent>(_onUpdateLocation);
     on<NetworkStatusChangedEvent>(_onNetworkStatusChanged);
@@ -83,7 +85,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     // Request permissions sequentially (Foreground -> Background -> Notification -> Battery)
     final hasPermission = await PermissionHelper.requestAllPermissions();
 
-    final active = await repository.getActiveAttendance();
+    final active = await repository.getActiveAttendance(employeeId: event.employeeId);
     final latestLoc = await repository.getLatestLocation();
     final count = await repository.getUnsyncedLocationsCount();
 
@@ -170,10 +172,8 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
             timeLimit: Duration(seconds: 3),
           ),
         );
-        if (pos != null) {
-          lat = pos.latitude;
-          lng = pos.longitude;
-        }
+        lat = pos.latitude;
+        lng = pos.longitude;
       } catch (_) {}
 
       // Start continuous background location service with instant initial position
@@ -226,6 +226,63 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
       emit(state.copyWith(
         isLoading: false,
         errorMessage: () => 'Failed to check out: $e',
+      ));
+    }
+  }
+
+  Future<void> _onStartBreak(
+    StartBreakEvent event,
+    Emitter<AttendanceState> emit,
+  ) async {
+    if (state.activeAttendance == null) return;
+
+    emit(state.copyWith(isLoading: true, errorMessage: () => null));
+
+    try {
+      final updated = await repository.startBreak(
+        attendanceId: state.activeAttendance!.attendanceId,
+      );
+      await BackgroundLocationService.stopTracking();
+
+      emit(state.copyWith(
+        isLoading: false,
+        activeAttendance: () => updated,
+        successMessage: () => 'Break Started. Location tracking paused.',
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isLoading: false,
+        errorMessage: () => 'Failed to start break: $e',
+      ));
+    }
+  }
+
+  Future<void> _onEndBreak(
+    EndBreakEvent event,
+    Emitter<AttendanceState> emit,
+  ) async {
+    if (state.activeAttendance == null) return;
+
+    emit(state.copyWith(isLoading: true, errorMessage: () => null));
+
+    try {
+      final updated = await repository.endBreak(
+        attendanceId: state.activeAttendance!.attendanceId,
+      );
+      await BackgroundLocationService.startTracking(
+        attendanceId: updated?.attendanceId,
+        employeeId: updated?.employeeId,
+      );
+
+      emit(state.copyWith(
+        isLoading: false,
+        activeAttendance: () => updated,
+        successMessage: () => 'Break Ended. Location tracking resumed.',
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isLoading: false,
+        errorMessage: () => 'Failed to end break: $e',
       ));
     }
   }

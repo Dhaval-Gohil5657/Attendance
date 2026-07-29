@@ -519,6 +519,17 @@ class $LocationLogTableTable extends LocationLogTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _employeeIdMeta = const VerificationMeta(
+    'employeeId',
+  );
+  @override
+  late final GeneratedColumn<String> employeeId = GeneratedColumn<String>(
+    'employee_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _latitudeMeta = const VerificationMeta(
     'latitude',
   );
@@ -629,6 +640,7 @@ class $LocationLogTableTable extends LocationLogTable
   List<GeneratedColumn> get $columns => [
     id,
     attendanceId,
+    employeeId,
     latitude,
     longitude,
     accuracy,
@@ -664,6 +676,12 @@ class $LocationLogTableTable extends LocationLogTable
       );
     } else if (isInserting) {
       context.missing(_attendanceIdMeta);
+    }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+        _employeeIdMeta,
+        employeeId.isAcceptableOrUnknown(data['employee_id']!, _employeeIdMeta),
+      );
     }
     if (data.containsKey('latitude')) {
       context.handle(
@@ -745,6 +763,10 @@ class $LocationLogTableTable extends LocationLogTable
         DriftSqlType.string,
         data['${effectivePrefix}attendance_id'],
       )!,
+      employeeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_id'],
+      ),
       latitude: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}latitude'],
@@ -793,6 +815,7 @@ class $LocationLogTableTable extends LocationLogTable
 class LocationLogData extends DataClass implements Insertable<LocationLogData> {
   final int id;
   final String attendanceId;
+  final String? employeeId;
   final double latitude;
   final double longitude;
   final double accuracy;
@@ -805,6 +828,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
   const LocationLogData({
     required this.id,
     required this.attendanceId,
+    this.employeeId,
     required this.latitude,
     required this.longitude,
     required this.accuracy,
@@ -820,6 +844,9 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['attendance_id'] = Variable<String>(attendanceId);
+    if (!nullToAbsent || employeeId != null) {
+      map['employee_id'] = Variable<String>(employeeId);
+    }
     map['latitude'] = Variable<double>(latitude);
     map['longitude'] = Variable<double>(longitude);
     map['accuracy'] = Variable<double>(accuracy);
@@ -836,6 +863,9 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
     return LocationLogTableCompanion(
       id: Value(id),
       attendanceId: Value(attendanceId),
+      employeeId: employeeId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeId),
       latitude: Value(latitude),
       longitude: Value(longitude),
       accuracy: Value(accuracy),
@@ -856,6 +886,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
     return LocationLogData(
       id: serializer.fromJson<int>(json['id']),
       attendanceId: serializer.fromJson<String>(json['attendanceId']),
+      employeeId: serializer.fromJson<String?>(json['employeeId']),
       latitude: serializer.fromJson<double>(json['latitude']),
       longitude: serializer.fromJson<double>(json['longitude']),
       accuracy: serializer.fromJson<double>(json['accuracy']),
@@ -873,6 +904,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'attendanceId': serializer.toJson<String>(attendanceId),
+      'employeeId': serializer.toJson<String?>(employeeId),
       'latitude': serializer.toJson<double>(latitude),
       'longitude': serializer.toJson<double>(longitude),
       'accuracy': serializer.toJson<double>(accuracy),
@@ -888,6 +920,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
   LocationLogData copyWith({
     int? id,
     String? attendanceId,
+    Value<String?> employeeId = const Value.absent(),
     double? latitude,
     double? longitude,
     double? accuracy,
@@ -900,6 +933,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
   }) => LocationLogData(
     id: id ?? this.id,
     attendanceId: attendanceId ?? this.attendanceId,
+    employeeId: employeeId.present ? employeeId.value : this.employeeId,
     latitude: latitude ?? this.latitude,
     longitude: longitude ?? this.longitude,
     accuracy: accuracy ?? this.accuracy,
@@ -916,6 +950,9 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
       attendanceId: data.attendanceId.present
           ? data.attendanceId.value
           : this.attendanceId,
+      employeeId: data.employeeId.present
+          ? data.employeeId.value
+          : this.employeeId,
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
       accuracy: data.accuracy.present ? data.accuracy.value : this.accuracy,
@@ -935,6 +972,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
     return (StringBuffer('LocationLogData(')
           ..write('id: $id, ')
           ..write('attendanceId: $attendanceId, ')
+          ..write('employeeId: $employeeId, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('accuracy: $accuracy, ')
@@ -952,6 +990,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
   int get hashCode => Object.hash(
     id,
     attendanceId,
+    employeeId,
     latitude,
     longitude,
     accuracy,
@@ -968,6 +1007,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
       (other is LocationLogData &&
           other.id == this.id &&
           other.attendanceId == this.attendanceId &&
+          other.employeeId == this.employeeId &&
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.accuracy == this.accuracy &&
@@ -982,6 +1022,7 @@ class LocationLogData extends DataClass implements Insertable<LocationLogData> {
 class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
   final Value<int> id;
   final Value<String> attendanceId;
+  final Value<String?> employeeId;
   final Value<double> latitude;
   final Value<double> longitude;
   final Value<double> accuracy;
@@ -994,6 +1035,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
   const LocationLogTableCompanion({
     this.id = const Value.absent(),
     this.attendanceId = const Value.absent(),
+    this.employeeId = const Value.absent(),
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.accuracy = const Value.absent(),
@@ -1007,6 +1049,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
   LocationLogTableCompanion.insert({
     this.id = const Value.absent(),
     required String attendanceId,
+    this.employeeId = const Value.absent(),
     required double latitude,
     required double longitude,
     this.accuracy = const Value.absent(),
@@ -1023,6 +1066,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
   static Insertable<LocationLogData> custom({
     Expression<int>? id,
     Expression<String>? attendanceId,
+    Expression<String>? employeeId,
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<double>? accuracy,
@@ -1036,6 +1080,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (attendanceId != null) 'attendance_id': attendanceId,
+      if (employeeId != null) 'employee_id': employeeId,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (accuracy != null) 'accuracy': accuracy,
@@ -1051,6 +1096,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
   LocationLogTableCompanion copyWith({
     Value<int>? id,
     Value<String>? attendanceId,
+    Value<String?>? employeeId,
     Value<double>? latitude,
     Value<double>? longitude,
     Value<double>? accuracy,
@@ -1064,6 +1110,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
     return LocationLogTableCompanion(
       id: id ?? this.id,
       attendanceId: attendanceId ?? this.attendanceId,
+      employeeId: employeeId ?? this.employeeId,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       accuracy: accuracy ?? this.accuracy,
@@ -1084,6 +1131,9 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
     }
     if (attendanceId.present) {
       map['attendance_id'] = Variable<String>(attendanceId.value);
+    }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<String>(employeeId.value);
     }
     if (latitude.present) {
       map['latitude'] = Variable<double>(latitude.value);
@@ -1120,6 +1170,7 @@ class LocationLogTableCompanion extends UpdateCompanion<LocationLogData> {
     return (StringBuffer('LocationLogTableCompanion(')
           ..write('id: $id, ')
           ..write('attendanceId: $attendanceId, ')
+          ..write('employeeId: $employeeId, ')
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('accuracy: $accuracy, ')
@@ -1411,6 +1462,7 @@ typedef $$LocationLogTableTableCreateCompanionBuilder =
     LocationLogTableCompanion Function({
       Value<int> id,
       required String attendanceId,
+      Value<String?> employeeId,
       required double latitude,
       required double longitude,
       Value<double> accuracy,
@@ -1425,6 +1477,7 @@ typedef $$LocationLogTableTableUpdateCompanionBuilder =
     LocationLogTableCompanion Function({
       Value<int> id,
       Value<String> attendanceId,
+      Value<String?> employeeId,
       Value<double> latitude,
       Value<double> longitude,
       Value<double> accuracy,
@@ -1452,6 +1505,11 @@ class $$LocationLogTableTableFilterComposer
 
   ColumnFilters<String> get attendanceId => $composableBuilder(
     column: $table.attendanceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeId => $composableBuilder(
+    column: $table.employeeId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1520,6 +1578,11 @@ class $$LocationLogTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get employeeId => $composableBuilder(
+    column: $table.employeeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get latitude => $composableBuilder(
     column: $table.latitude,
     builder: (column) => ColumnOrderings(column),
@@ -1580,6 +1643,11 @@ class $$LocationLogTableTableAnnotationComposer
 
   GeneratedColumn<String> get attendanceId => $composableBuilder(
     column: $table.attendanceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get employeeId => $composableBuilder(
+    column: $table.employeeId,
     builder: (column) => column,
   );
 
@@ -1652,6 +1720,7 @@ class $$LocationLogTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> attendanceId = const Value.absent(),
+                Value<String?> employeeId = const Value.absent(),
                 Value<double> latitude = const Value.absent(),
                 Value<double> longitude = const Value.absent(),
                 Value<double> accuracy = const Value.absent(),
@@ -1664,6 +1733,7 @@ class $$LocationLogTableTableTableManager
               }) => LocationLogTableCompanion(
                 id: id,
                 attendanceId: attendanceId,
+                employeeId: employeeId,
                 latitude: latitude,
                 longitude: longitude,
                 accuracy: accuracy,
@@ -1678,6 +1748,7 @@ class $$LocationLogTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String attendanceId,
+                Value<String?> employeeId = const Value.absent(),
                 required double latitude,
                 required double longitude,
                 Value<double> accuracy = const Value.absent(),
@@ -1690,6 +1761,7 @@ class $$LocationLogTableTableTableManager
               }) => LocationLogTableCompanion.insert(
                 id: id,
                 attendanceId: attendanceId,
+                employeeId: employeeId,
                 latitude: latitude,
                 longitude: longitude,
                 accuracy: accuracy,

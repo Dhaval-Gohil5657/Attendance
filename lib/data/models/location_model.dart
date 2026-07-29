@@ -8,6 +8,7 @@ class LocationModel extends LocationEntity {
   const LocationModel({
     super.id,
     required super.attendanceId,
+    super.employeeId,
     required super.latitude,
     required super.longitude,
     required super.accuracy,
@@ -23,6 +24,7 @@ class LocationModel extends LocationEntity {
     return LocationModel(
       id: entity.id,
       attendanceId: entity.attendanceId,
+      employeeId: entity.employeeId,
       latitude: entity.latitude,
       longitude: entity.longitude,
       accuracy: entity.accuracy,
@@ -39,6 +41,7 @@ class LocationModel extends LocationEntity {
     return LocationModel(
       id: data.id,
       attendanceId: data.attendanceId,
+      employeeId: data.employeeId,
       latitude: data.latitude,
       longitude: data.longitude,
       accuracy: data.accuracy,
@@ -54,6 +57,7 @@ class LocationModel extends LocationEntity {
   LocationLogTableCompanion toDriftCompanion() {
     return LocationLogTableCompanion.insert(
       attendanceId: attendanceId,
+      employeeId: Value(employeeId),
       latitude: latitude,
       longitude: longitude,
       accuracy: Value(accuracy),
@@ -69,6 +73,7 @@ class LocationModel extends LocationEntity {
   Map<String, dynamic> toFirestore() {
     return {
       'attendanceId': attendanceId,
+      'employeeId': employeeId ?? '',
       'latitude': latitude,
       'longitude': longitude,
       'accuracy': accuracy,
@@ -84,6 +89,7 @@ class LocationModel extends LocationEntity {
     return LocationModel(
       id: id,
       attendanceId: json['attendanceId'] ?? '',
+      employeeId: json['employeeId'] as String?,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       accuracy: (json['accuracy'] as num).toDouble(),

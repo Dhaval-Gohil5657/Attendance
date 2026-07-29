@@ -7,7 +7,14 @@ abstract class AttendanceEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class InitializeAttendance extends AttendanceEvent {}
+class InitializeAttendance extends AttendanceEvent {
+  final String? employeeId;
+
+  const InitializeAttendance({this.employeeId});
+
+  @override
+  List<Object?> get props => [employeeId];
+}
 
 class CheckInEvent extends AttendanceEvent {
   final String employeeId;
@@ -19,6 +26,10 @@ class CheckInEvent extends AttendanceEvent {
 }
 
 class CheckOutEvent extends AttendanceEvent {}
+
+class StartBreakEvent extends AttendanceEvent {}
+
+class EndBreakEvent extends AttendanceEvent {}
 
 class SyncNowEvent extends AttendanceEvent {
   final bool isManualSync;

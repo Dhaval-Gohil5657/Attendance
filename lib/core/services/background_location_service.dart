@@ -235,7 +235,7 @@ class BackgroundLocationService {
             try {
               final locData = {
                 'attendanceId': currentAttendanceId,
-                'employeeId': currentEmployeeId ?? 'EMP_DUMMY_001',
+                'employeeId': currentEmployeeId ?? '',
                 'latitude': position.latitude,
                 'longitude': position.longitude,
                 'accuracy': position.accuracy,

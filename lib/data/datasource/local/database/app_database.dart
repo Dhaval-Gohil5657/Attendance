@@ -29,6 +29,7 @@ class AttendanceTable extends Table {
 class LocationLogTable extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get attendanceId => text()();
+  TextColumn get employeeId => text().nullable()();
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
   RealColumn get accuracy => real().withDefault(const Constant(0.0))();
@@ -58,9 +59,20 @@ class AppDatabase extends _$AppDatabase {
   Future<bool> updateAttendance(AttendanceTableCompanion entry) =>
       update(attendanceTable).replace(entry);
 
-  Future<AttendanceData?> getActiveAttendance() {
+  Future<AttendanceData?> getActiveAttendance({String? employeeId}) {
+    if (employeeId != null && employeeId.isNotEmpty) {
+      return (select(attendanceTable)
+            ..where((tbl) =>
+                tbl.employeeId.equals(employeeId) &
+                tbl.status.isIn(['active', 'on_break']) &
+                tbl.checkOutTime.isNull())
+            ..limit(1))
+          .getSingleOrNull();
+    }
     return (select(attendanceTable)
-          ..where((tbl) => tbl.isTracking.equals(true))
+          ..where((tbl) =>
+              tbl.status.isIn(['active', 'on_break']) &
+              tbl.checkOutTime.isNull())
           ..limit(1))
         .getSingleOrNull();
   }

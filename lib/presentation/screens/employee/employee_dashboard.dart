@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,12 +9,30 @@ import '../../../domain/entities/employee_entity.dart';
 import '../../bloc/attendance_bloc.dart';
 import '../../bloc/attendance_event.dart';
 import '../../bloc/attendance_state.dart';
+import '../../widgets/slide_to_confirm_widget.dart';
 import 'employee_profile_screen.dart';
 
-class EmployeeDashboardScreen extends StatelessWidget {
+class EmployeeDashboardScreen extends StatefulWidget {
   final EmployeeEntity user;
 
   const EmployeeDashboardScreen({super.key, required this.user});
+
+  @override
+  State<EmployeeDashboardScreen> createState() => _EmployeeDashboardScreenState();
+}
+
+class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
+  bool _isMapOpen = false; // Closed by default as per requirement
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AttendanceBloc>().add(
+            InitializeAttendance(employeeId: widget.user.email),
+          );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +51,7 @@ class EmployeeDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.sync),
             tooltip: 'Sync Now',
             onPressed: () {
-              context.read<AttendanceBloc>().add(SyncNowEvent());
+              context.read<AttendanceBloc>().add(const SyncNowEvent(isManualSync: true));
             },
           ),
         ],
@@ -61,40 +80,42 @@ class EmployeeDashboardScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final isActive = state.activeAttendance != null;
+          final activeAttendance = state.activeAttendance;
+          final isActive = activeAttendance != null;
+          final isOnBreak = activeAttendance?.status == 'on_break';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Employee Info Header
+                // 1. Employee Info Profile Card
                 _buildEmployeeCard(context),
 
                 const SizedBox(height: 16),
 
-                // Live Network & Sync Status Row
+                // 2. PRIMARY ACTION CONTROLS (Placed right below Profile Card as per Option 1)
+                _buildActionControls(context, isActive, isOnBreak),
+
+                const SizedBox(height: 20),
+
+                // 3. Main Attendance Status & Dynamic Timer Banner
+                _buildAttendanceStatusBanner(context, isActive, isOnBreak, state),
+
+                const SizedBox(height: 16),
+
+                // 4. Live Network & Sync Status Row
                 _buildNetworkStatusRow(context, state),
 
                 const SizedBox(height: 16),
 
-                // Main Attendance Status Banner
-                _buildAttendanceStatusBanner(isActive, state),
+                // 5. Live Location Telemetry Info Card
+                _buildLocationCard(state, isOnBreak),
 
                 const SizedBox(height: 16),
 
-                // Live Location Info Card
-                _buildLocationCard(state),
-
-                const SizedBox(height: 16),
-
-                // Live Interactive Map View
-                _buildLiveMapCard(state),
-
-                const SizedBox(height: 24),
-
-                // Action Buttons
-                _buildActionButtons(context, isActive),
+                // 6. Collapsible Live Interactive Map View (CLOSED BY DEFAULT)
+                _buildCollapsibleMapCard(state),
               ],
             ),
           );
@@ -111,7 +132,7 @@ class EmployeeDashboardScreen extends StatelessWidget {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => EmployeeProfileScreen(user: user),
+              builder: (context) => EmployeeProfileScreen(user: widget.user),
             ),
           );
         },
@@ -146,7 +167,7 @@ class EmployeeDashboardScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user.name.isNotEmpty ? user.name : 'Employee User',
+                      widget.user.name.isNotEmpty ? widget.user.name : 'Employee User',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -155,7 +176,7 @@ class EmployeeDashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      user.email,
+                      widget.user.email,
                       style: const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
@@ -166,6 +187,73 @@ class EmployeeDashboardScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionControls(BuildContext context, bool isActive, bool isOnBreak) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!isActive) ...[
+          // Slide to Start Attendance
+          SlideToConfirmWidget(
+            text: 'SLIDE TO MARK ATTENDANCE',
+            icon: Icons.play_arrow_rounded,
+            backgroundColor: Colors.indigo.shade50,
+            sliderColor: Colors.indigo.shade800,
+            textColor: Colors.indigo.shade900,
+            onConfirmed: () {
+              context.read<AttendanceBloc>().add(CheckInEvent(employeeId: widget.user.email));
+            },
+          ),
+        ] else ...[
+          // Break Toggle Button
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    if (isOnBreak) {
+                      context.read<AttendanceBloc>().add(EndBreakEvent());
+                    } else {
+                      context.read<AttendanceBloc>().add(StartBreakEvent());
+                    }
+                  },
+                  icon: Icon(
+                    isOnBreak ? Icons.play_arrow_rounded : Icons.free_breakfast_rounded,
+                    size: 22,
+                  ),
+                  label: Text(
+                    isOnBreak ? 'END BREAK' : 'START BREAK',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isOnBreak ? Colors.green.shade700 : Colors.amber.shade800,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Slide to Close Attendance with EOD Popup Confirmation
+          SlideToConfirmWidget(
+            text: 'SLIDE TO CLOSE ATTENDANCE',
+            icon: Icons.stop_rounded,
+            backgroundColor: Colors.red.shade50,
+            sliderColor: Colors.red.shade700,
+            textColor: Colors.red.shade900,
+            onConfirmed: () {
+              _showCheckOutConfirmationDialog(context);
+            },
+          ),
+        ],
+      ],
     );
   }
 
@@ -249,13 +337,32 @@ class EmployeeDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAttendanceStatusBanner(bool isActive, AttendanceState state) {
+  Widget _buildAttendanceStatusBanner(
+    BuildContext context,
+    bool isActive,
+    bool isOnBreak,
+    AttendanceState state,
+  ) {
     final checkInFormatted = state.activeAttendance != null
         ? DateFormat('hh:mm a').format(state.activeAttendance!.checkInTime)
         : '--:--';
 
+    String statusText = 'CHECKED OUT';
+    Color badgeColor = Colors.grey.shade600;
+    Color badgeBg = Colors.grey.shade200;
+
+    if (isOnBreak) {
+      statusText = 'ON BREAK';
+      badgeColor = Colors.amber.shade900;
+      badgeBg = Colors.amber.shade100;
+    } else if (isActive) {
+      statusText = 'ACTIVE';
+      badgeColor = Colors.green.shade800;
+      badgeBg = Colors.green.shade100;
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -275,29 +382,25 @@ class EmployeeDashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Attendance Status',
+                'Workday Lifecycle',
                 style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w600),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+                  color: badgeBg,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.circle,
-                      size: 10,
-                      color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
-                    ),
+                    Icon(Icons.circle, size: 10, color: badgeColor),
                     const SizedBox(width: 6),
                     Text(
-                      isActive ? 'ACTIVE' : 'CHECKED OUT',
+                      statusText,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isActive ? Colors.green.shade800 : Colors.grey.shade700,
+                        color: badgeColor,
                       ),
                     ),
                   ],
@@ -307,18 +410,37 @@ class EmployeeDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            isActive ? 'Tracking active in background' : 'Not Currently Checked In',
+            isOnBreak
+                ? 'On Break (Tracking Paused)'
+                : (isActive ? 'Workday Active (Live Tracking)' : 'Not Checked In'),
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
-          if (isActive) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Checked In at: $checkInFormatted (Session: ${state.activeAttendance!.attendanceId.substring(0, 8)})',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          if (isActive && state.activeAttendance != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Check-in Time', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                    const SizedBox(height: 2),
+                    Text(checkInFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('Workday Duration', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                    const SizedBox(height: 2),
+                    _WorkdayTimerWidget(startTime: state.activeAttendance!.checkInTime),
+                  ],
+                ),
+              ],
             ),
           ],
         ],
@@ -326,7 +448,7 @@ class EmployeeDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationCard(AttendanceState state) {
+  Widget _buildLocationCard(AttendanceState state, bool isOnBreak) {
     final latText = state.currentLatitude != null
         ? state.currentLatitude!.toStringAsFixed(6)
         : 'Fetching location...';
@@ -335,7 +457,7 @@ class EmployeeDashboardScreen extends StatelessWidget {
         : 'Fetching location...';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -352,12 +474,19 @@ class EmployeeDashboardScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.location_on, color: Colors.redAccent),
-              SizedBox(width: 8),
-              Text(
-                'Live Location Stream (5s Interval)',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            children: [
+              Icon(
+                Icons.location_on,
+                color: isOnBreak ? Colors.grey : Colors.redAccent,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isOnBreak
+                      ? 'Live Location (Paused during Break)'
+                      : 'Live Location Stream (5s Interval)',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -391,37 +520,82 @@ class EmployeeDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, bool isActive) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!isActive)
-          ElevatedButton.icon(
-            onPressed: () {
-              context.read<AttendanceBloc>().add(CheckInEvent(employeeId: user.email));
+  Widget _buildCollapsibleMapCard(AttendanceState state) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Tappable Header to Open / Close Map View
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isMapOpen = !_isMapOpen;
+              });
             },
-            icon: const Icon(Icons.play_arrow_rounded, size: 28),
-            label: const Text('MARK ATTENDANCE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo.shade800,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          )
-        else
-          ElevatedButton.icon(
-            onPressed: () {
-              context.read<AttendanceBloc>().add(CheckOutEvent());
-            },
-            icon: const Icon(Icons.stop_rounded, size: 28),
-            label: const Text('CHECK OUT', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.map_rounded, color: Colors.indigo.shade800, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Live Location Map View',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _isMapOpen ? 'Tap to hide live map view' : 'Tap to open live map view',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _isMapOpen
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: Colors.grey.shade600,
+                    size: 26,
+                  ),
+                ],
+              ),
             ),
           ),
-      ],
+
+          // Expanded Map Content (Hidden when _isMapOpen is false)
+          if (_isMapOpen) ...[
+            const Divider(height: 1),
+            _buildLiveMapCard(state),
+          ],
+        ],
+      ),
     );
   }
 
@@ -429,9 +603,12 @@ class EmployeeDashboardScreen extends StatelessWidget {
     if (state.currentLatitude == null || state.currentLongitude == null) {
       return Container(
         height: 200,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(16),
+            bottomRight: Radius.circular(16),
+          ),
         ),
         child: const Center(
           child: Column(
@@ -454,15 +631,11 @@ class EmployeeDashboardScreen extends StatelessWidget {
     return Container(
       height: 260,
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.indigo.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
       ),
       child: Stack(
         children: [
@@ -520,6 +693,99 @@ class EmployeeDashboardScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCheckOutConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+            SizedBox(width: 8),
+            Text('Close Attendance?'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to end your workday? All background location tracking will be stopped and your session finalized for today.',
+          style: TextStyle(fontSize: 14, color: Colors.black87),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.read<AttendanceBloc>().add(CheckOutEvent());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Confirm & Checkout', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkdayTimerWidget extends StatefulWidget {
+  final DateTime startTime;
+
+  const _WorkdayTimerWidget({required this.startTime});
+
+  @override
+  State<_WorkdayTimerWidget> createState() => _WorkdayTimerWidgetState();
+}
+
+class _WorkdayTimerWidgetState extends State<_WorkdayTimerWidget> {
+  late Timer _timer;
+  late Duration _elapsed;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateElapsed();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          _calculateElapsed();
+        });
+      }
+    });
+  }
+
+  void _calculateElapsed() {
+    _elapsed = DateTime.now().difference(widget.startTime);
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hours = _elapsed.inHours.toString().padLeft(2, '0');
+    final minutes = (_elapsed.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (_elapsed.inSeconds % 60).toString().padLeft(2, '0');
+
+    return Text(
+      '$hours:$minutes:$seconds',
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+        color: Colors.indigo,
+        fontFamily: 'monospace',
       ),
     );
   }

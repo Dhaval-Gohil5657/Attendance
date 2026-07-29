@@ -67,6 +67,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
         final initialLocEntity = LocationEntity(
           attendanceId: attendanceId,
+          employeeId: employeeId,
           latitude: initialPos.latitude,
           longitude: initialPos.longitude,
           accuracy: initialPos.accuracy,
@@ -122,13 +123,81 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   @override
-  Future<AttendanceEntity?> getActiveAttendance() async {
-    return await localDataSource.getActiveAttendance();
+  Future<AttendanceEntity?> startBreak({required String attendanceId}) async {
+    final current = await localDataSource.getAttendanceById(attendanceId);
+    if (current == null) return null;
+
+    final updatedModel = AttendanceModel(
+      attendanceId: current.attendanceId,
+      employeeId: current.employeeId,
+      checkInTime: current.checkInTime,
+      checkOutTime: current.checkOutTime,
+      status: 'on_break',
+      isTracking: false,
+      createdAt: current.createdAt,
+    );
+
+    await localDataSource.saveAttendance(updatedModel);
+    logger.i('Attendance break started saved locally: $attendanceId');
+
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (_hasNetworkConnection(connectivityResult)) {
+      try {
+        await remoteDataSource.syncAttendance(updatedModel);
+        logger.i('Attendance start break synced to Firebase immediately.');
+      } catch (e) {
+        logger.w('Failed immediate sync of start break, queued for later auto-sync: $e');
+      }
+    }
+
+    return updatedModel;
+  }
+
+  @override
+  Future<AttendanceEntity?> endBreak({required String attendanceId}) async {
+    final current = await localDataSource.getAttendanceById(attendanceId);
+    if (current == null) return null;
+
+    final updatedModel = AttendanceModel(
+      attendanceId: current.attendanceId,
+      employeeId: current.employeeId,
+      checkInTime: current.checkInTime,
+      checkOutTime: current.checkOutTime,
+      status: 'active',
+      isTracking: true,
+      createdAt: current.createdAt,
+    );
+
+    await localDataSource.saveAttendance(updatedModel);
+    logger.i('Attendance break ended saved locally: $attendanceId');
+
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (_hasNetworkConnection(connectivityResult)) {
+      try {
+        await remoteDataSource.syncAttendance(updatedModel);
+        logger.i('Attendance end break synced to Firebase immediately.');
+      } catch (e) {
+        logger.w('Failed immediate sync of end break, queued for later auto-sync: $e');
+      }
+    }
+
+    return updatedModel;
+  }
+
+  @override
+  Future<AttendanceEntity?> getActiveAttendance({String? employeeId}) async {
+    return await localDataSource.getActiveAttendance(employeeId: employeeId);
   }
 
   @override
   Future<void> saveLocationRecord(LocationEntity location) async {
-    final model = LocationModel.fromEntity(location);
+    String? empId = location.employeeId;
+    if (empId == null || empId.isEmpty) {
+      final att = await localDataSource.getAttendanceById(location.attendanceId);
+      empId = att?.employeeId;
+    }
+
+    final model = LocationModel.fromEntity(location.copyWith(employeeId: empId));
 
     final connectivityResult = await connectivity.checkConnectivity();
     final isOnline = _hasNetworkConnection(connectivityResult);
@@ -138,6 +207,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
         final syncedModel = LocationModel(
           id: model.id,
           attendanceId: model.attendanceId,
+          employeeId: model.employeeId,
           latitude: model.latitude,
           longitude: model.longitude,
           accuracy: model.accuracy,

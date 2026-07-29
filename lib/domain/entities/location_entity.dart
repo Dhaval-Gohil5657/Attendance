@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 class LocationEntity extends Equatable {
   final int? id;
   final String attendanceId;
+  final String? employeeId;
   final double latitude;
   final double longitude;
   final double accuracy;
@@ -16,6 +17,7 @@ class LocationEntity extends Equatable {
   const LocationEntity({
     this.id,
     required this.attendanceId,
+    this.employeeId,
     required this.latitude,
     required this.longitude,
     required this.accuracy,
@@ -31,6 +33,7 @@ class LocationEntity extends Equatable {
   List<Object?> get props => [
         id,
         attendanceId,
+        employeeId,
         latitude,
         longitude,
         accuracy,
@@ -45,6 +48,7 @@ class LocationEntity extends Equatable {
   LocationEntity copyWith({
     int? id,
     String? attendanceId,
+    String? employeeId,
     double? latitude,
     double? longitude,
     double? accuracy,
@@ -58,6 +62,7 @@ class LocationEntity extends Equatable {
     return LocationEntity(
       id: id ?? this.id,
       attendanceId: attendanceId ?? this.attendanceId,
+      employeeId: employeeId ?? this.employeeId,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       accuracy: accuracy ?? this.accuracy,

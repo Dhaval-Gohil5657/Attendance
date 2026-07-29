@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/entities/employee_entity.dart';
 import 'add_employee_screen.dart';
+import 'company_live_tracking_screen.dart';
 
 class EmployeeListScreen extends StatelessWidget {
   final EmployeeEntity companyUser;
@@ -90,7 +90,7 @@ class EmployeeListScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Tap "Add Employee" below to create credentials and invite team members via WhatsApp.',
+                        'Tap "Add Employee" below to create credentials and invite team members.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                       ),
@@ -170,7 +170,7 @@ class EmployeeListScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Employee List View
+                  // Employee List View with Real-time Attendance Status
                   Expanded(
                     child: ListView.builder(
                       itemCount: docs.length,
@@ -178,7 +178,6 @@ class EmployeeListScreen extends StatelessWidget {
                         final data = docs[index].data();
                         final empName = data['name'] ?? 'Employee';
                         final empEmail = data['email'] ?? 'No email';
-                        final isFirstLogin = data['isFirstLogin'] ?? true;
 
                         final initial = empName.isNotEmpty ? empName[0].toUpperCase() : 'E';
 
@@ -191,7 +190,7 @@ class EmployeeListScreen extends StatelessWidget {
                             side: BorderSide(color: Colors.grey.shade200),
                           ),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             leading: CircleAvatar(
                               radius: 24,
                               backgroundColor: Colors.indigo.shade50,
@@ -212,49 +211,110 @@ class EmployeeListScreen extends StatelessWidget {
                                 color: Color(0xFF0F172A),
                               ),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Row(
+                            subtitle: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              // Query live attendance status for this employee
+                              stream: FirebaseFirestore.instance
+                                  .collection('attendance')
+                                  .where('employeeId', isEqualTo: empEmail)
+                                  .limit(20)
+                                  .snapshots(),
+                              builder: (context, attSnapshot) {
+                                final rawAttDocs = attSnapshot.data?.docs ?? [];
+                                final attList = rawAttDocs.toList();
+
+                                // Client-side sort by checkInTime descending
+                                attList.sort((a, b) {
+                                  final tA = a.data()['checkInTime'] as Timestamp?;
+                                  final tB = b.data()['checkInTime'] as Timestamp?;
+                                  if (tA == null || tB == null) return 0;
+                                  return tB.compareTo(tA);
+                                });
+
+                                final latestAtt = attList.isNotEmpty ? attList.first.data() : null;
+                                final isTracking = latestAtt?['isTracking'] ?? false;
+                                final status = latestAtt?['status'] ?? 'not_started';
+
+                                String attStatusText = 'NOT STARTED';
+                                Color attColor = Colors.grey.shade700;
+                                Color attBg = Colors.grey.shade100;
+                                Color attBorder = Colors.grey.shade300;
+
+                                if (status == 'on_break') {
+                                  attStatusText = 'ON BREAK';
+                                  attColor = Colors.amber.shade900;
+                                  attBg = Colors.amber.shade50;
+                                  attBorder = Colors.amber.shade300;
+                                } else if (status == 'active' || isTracking) {
+                                  attStatusText = 'CHECKED IN';
+                                  attColor = const Color(0xFF047857);
+                                  attBg = const Color(0xFFECFDF5);
+                                  attBorder = const Color(0xFFA5D6A7);
+                                } else if (status == 'checked_out') {
+                                  attStatusText = 'CHECKED OUT';
+                                  attColor = Colors.blue.shade900;
+                                  attBg = Colors.blue.shade50;
+                                  attBorder = Colors.blue.shade200;
+                                }
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade600),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        empEmail,
-                                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                                        overflow: TextOverflow.ellipsis,
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade600),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            empEmail,
+                                            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    // Real-time Attendance Status Badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: attBg,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: attBorder),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.circle, size: 8, color: attColor),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            attStatusText,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: attColor,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isFirstLogin ? Colors.amber.shade50 : const Color(0xFFECFDF5),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: isFirstLogin ? Colors.amber.shade200 : const Color(0xFFA5D6A7),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isFirstLogin ? 'Pending First Login' : 'Active Account',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: isFirstLogin ? Colors.amber.shade900 : const Color(0xFF047857),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
                             trailing: IconButton(
-                              icon: const Icon(Icons.chat_outlined, color: Color(0xFF25D366)),
-                              tooltip: 'Resend WhatsApp Credentials',
+                              icon: const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 26),
+                              tooltip: 'Track Live Location',
                               onPressed: () {
-                                _resendWhatsAppInvite(context, empName, empEmail);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => CompanyLiveTrackingScreen(
+                                      companyUser: companyUser,
+                                      initialSelectedEmployeeId: empEmail,
+                                      initialSelectedEmployeeName: empName,
+                                    ),
+                                  ),
+                                );
                               },
                             ),
                           ),
@@ -269,37 +329,5 @@ class EmployeeListScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _resendWhatsAppInvite(BuildContext context, String name, String email) async {
-    const String appLink = 'https://play.google.com/store/apps/details?id=com.company.attendance';
-
-    final message = '👋 *Welcome to ${companyUser.name}!*\n\n'
-        'Your Employee HRMS Portal account credentials:\n\n'
-        '🔑 *User ID / Email:* $email\n'
-        '🔒 *Password:* (Set by your company)\n\n'
-        '📱 *Download App:* $appLink\n\n'
-        'Please download the app, select *Login as Employee*, and sign in to mark your daily attendance.';
-
-    final whatsappUrl = Uri.parse(
-      'https://wa.me/?text=${Uri.encodeComponent(message)}',
-    );
-
-    try {
-      if (await canLaunchUrl(whatsappUrl)) {
-        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not launch WhatsApp. Ensure WhatsApp is installed.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('WhatsApp launch error: $e');
-    }
   }
 }

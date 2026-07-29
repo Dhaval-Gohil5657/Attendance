@@ -209,7 +209,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
                           value: isQuickLoginActive,
-                          activeColor: Colors.indigo.shade800,
+                          activeThumbColor: Colors.indigo.shade800,
                           onChanged: (bool value) async {
                             if (value) {
                               await Navigator.of(context).push(

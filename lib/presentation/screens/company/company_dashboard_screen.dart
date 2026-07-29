@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/entities/employee_entity.dart';
 import 'add_employee_screen.dart';
+import 'attendance_policy_screen.dart';
+import 'company_live_tracking_screen.dart';
 import 'company_profile_screen.dart';
 import 'employee_list_screen.dart';
 
@@ -26,7 +28,7 @@ class CompanyDashboardScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
-            title: Text('Company Portal'),
+            title: const Text('Company Portal'),
             backgroundColor: Colors.indigo.shade800,
             foregroundColor: Colors.white,
           ),
@@ -125,21 +127,48 @@ class CompanyDashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'Company Actions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  // CATEGORY 1: Live Monitoring & GPS Tracking
+                  _buildSectionHeader(
+                    icon: Icons.map_rounded,
+                    title: 'Live Operations & Tracking',
                   ),
-                  const SizedBox(height: 12),
-
-                  // Action Buttons
+                  const SizedBox(height: 10),
                   ElevatedButton.icon(
-                    icon: const Icon(Icons.person_add),
+                    icon: const Icon(Icons.map_rounded, size: 22),
+                    label: const Text('LIVE LOCATION TRACKING MAP'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo.shade900,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => CompanyLiveTrackingScreen(companyUser: user),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // CATEGORY 2: Team & Employee Management
+                  _buildSectionHeader(
+                    icon: Icons.people_alt_rounded,
+                    title: 'Team & Employee Management',
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.person_add_rounded, size: 22),
                     label: const Text('ADD NEW EMPLOYEE'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo.shade800,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 1,
                     ),
                     onPressed: () {
                       Navigator.of(context).push(
@@ -149,10 +178,9 @@ class CompanyDashboardScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
-
+                  const SizedBox(height: 10),
                   OutlinedButton.icon(
-                    icon: const Icon(Icons.people_alt_outlined),
+                    icon: const Icon(Icons.people_alt_outlined, size: 22),
                     label: const Text('VIEW ALL EMPLOYEES'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.indigo.shade800,
@@ -168,12 +196,55 @@ class CompanyDashboardScreen extends StatelessWidget {
                       );
                     },
                   ),
+
+                  const SizedBox(height: 24),
+
+                  // CATEGORY 3: Company Setup & Policies
+                  _buildSectionHeader(
+                    icon: Icons.tune_rounded,
+                    title: 'Policy & System Controls',
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.admin_panel_settings_outlined, size: 22),
+                    label: const Text('ATTENDANCE POLICY SETUP'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.indigo.shade900,
+                      side: BorderSide(color: Colors.indigo.shade900),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => AttendancePolicyScreen(companyUser: user),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSectionHeader({required IconData icon, required String title}) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF475569)),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+      ],
     );
   }
 }

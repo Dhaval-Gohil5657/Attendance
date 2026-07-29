@@ -4,7 +4,7 @@ import 'database/app_database.dart';
 
 abstract class LocalDataSource {
   Future<void> saveAttendance(AttendanceModel attendance);
-  Future<AttendanceModel?> getActiveAttendance();
+  Future<AttendanceModel?> getActiveAttendance({String? employeeId});
   Future<AttendanceModel?> getAttendanceById(String id);
   Future<void> saveLocation(LocationModel location);
   Future<List<LocationModel>> getUnsyncedLocations();
@@ -24,8 +24,8 @@ class LocalDataSourceImpl implements LocalDataSource {
   }
 
   @override
-  Future<AttendanceModel?> getActiveAttendance() async {
-    final data = await database.getActiveAttendance();
+  Future<AttendanceModel?> getActiveAttendance({String? employeeId}) async {
+    final data = await database.getActiveAttendance(employeeId: employeeId);
     if (data == null) return null;
     return AttendanceModel.fromDrift(data);
   }
