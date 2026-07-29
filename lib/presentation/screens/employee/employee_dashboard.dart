@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -24,6 +25,7 @@ class EmployeeDashboardScreen extends StatefulWidget {
 
 class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
   bool _isMapOpen = false; // Closed by default as per requirement
+  String _selectedTravelMode = 'Four-Wheeler';
 
   @override
   void initState() {
@@ -58,68 +60,80 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           ),
         ],
       ),
-      body: BlocConsumer<AttendanceBloc, AttendanceState>(
-        listener: (context, state) {
-          if (state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.errorMessage!),
-                backgroundColor: Colors.red.shade700,
-              ),
-            );
-          }
-          if (state.successMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.successMessage!),
-                backgroundColor: Colors.green.shade700,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('companies')
+            .doc(widget.user.companyId ?? widget.user.uid)
+            .snapshots(),
+        builder: (context, compSnapshot) {
+          final compData = compSnapshot.data?.data();
+          final policy = compData?['attendancePolicy'] as Map<String, dynamic>?;
+          final enableTravelMode = policy?['enableTravelMode'] ?? false;
 
-          final activeAttendance = state.activeAttendance;
-          final isActive = activeAttendance != null;
-          final isOnBreak = activeAttendance?.status == 'on_break';
+          return BlocConsumer<AttendanceBloc, AttendanceState>(
+            listener: (context, state) {
+              if (state.errorMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.errorMessage!),
+                    backgroundColor: Colors.red.shade700,
+                  ),
+                );
+              }
+              if (state.successMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.successMessage!),
+                    backgroundColor: Colors.green.shade700,
+                  ),
+                );
+              }
+            },
+            builder: (context, state) {
+              if (state.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Employee Info Profile Card
-                _buildEmployeeCard(context),
+              final activeAttendance = state.activeAttendance;
+              final isActive = activeAttendance != null;
+              final isOnBreak = activeAttendance?.status == 'on_break';
 
-                const SizedBox(height: 16),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Employee Info Profile Card
+                    _buildEmployeeCard(context),
 
-                // 2. PRIMARY ACTION CONTROLS (Placed right below Profile Card as per Option 1)
-                _buildActionControls(context, isActive, isOnBreak),
+                    const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
+                    // 2. PRIMARY ACTION CONTROLS
+                    _buildActionControls(context, isActive, isOnBreak, enableTravelMode),
 
-                // 3. Main Attendance Status & Dynamic Timer Banner
-                _buildAttendanceStatusBanner(context, isActive, isOnBreak, state),
+                    const SizedBox(height: 20),
 
-                const SizedBox(height: 16),
+                    // 3. Main Attendance Status & Dynamic Timer Banner
+                    _buildAttendanceStatusBanner(context, isActive, isOnBreak, state, enableTravelMode),
 
-                // 4. Live Network & Sync Status Row
-                _buildNetworkStatusRow(context, state),
+                    const SizedBox(height: 16),
 
-                const SizedBox(height: 16),
+                    // 4. Live Network & Sync Status Row
+                    _buildNetworkStatusRow(context, state),
 
-                // 5. Live Location Telemetry Info Card
-                _buildLocationCard(state, isOnBreak),
+                    const SizedBox(height: 16),
 
-                const SizedBox(height: 16),
+                    // 5. Live Location Telemetry Info Card
+                    _buildLocationCard(state, isOnBreak),
 
-                // 6. Collapsible Live Interactive Map View (CLOSED BY DEFAULT)
-                _buildCollapsibleMapCard(state),
-              ],
-            ),
+                    const SizedBox(height: 16),
+
+                    // 6. Collapsible Live Interactive Map View
+                    _buildCollapsibleMapCard(state),
+                  ],
+                ),
+              );
+            },
           );
         },
       ),
@@ -192,11 +206,52 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     );
   }
 
-  Widget _buildActionControls(BuildContext context, bool isActive, bool isOnBreak) {
+  Widget _buildActionControls(BuildContext context, bool isActive, bool isOnBreak, bool enableTravelMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (!isActive) ...[
+          if (enableTravelMode) ...[
+            // Travel Mode Selection Card
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 4),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.directions_transit_filled_rounded, size: 18, color: Color(0xFF334155)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Select Travel Mode Requirement',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _buildTravelChip('Walking', Icons.directions_walk_rounded),
+                      const SizedBox(width: 8),
+                      _buildTravelChip('Two-Wheeler', Icons.two_wheeler_rounded),
+                      const SizedBox(width: 8),
+                      _buildTravelChip('Four-Wheeler', Icons.directions_car_rounded),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
           // Slide to Start Attendance
           SlideToConfirmWidget(
             text: 'SLIDE TO MARK ATTENDANCE',
@@ -205,7 +260,12 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             sliderColor: Colors.indigo.shade800,
             textColor: Colors.indigo.shade900,
             onConfirmed: () {
-              context.read<AttendanceBloc>().add(CheckInEvent(employeeId: widget.user.email));
+              context.read<AttendanceBloc>().add(
+                    CheckInEvent(
+                      employeeId: widget.user.email,
+                      travelMode: _selectedTravelMode,
+                    ),
+                  );
             },
           ),
         ] else ...[
@@ -256,6 +316,49 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildTravelChip(String mode, IconData icon) {
+    final isSelected = _selectedTravelMode == mode;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedTravelMode = mode;
+          });
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.indigo.shade50 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? Colors.indigo.shade800 : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? Colors.indigo.shade900 : Colors.grey.shade600,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                mode,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.indigo.shade900 : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -344,6 +447,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     bool isActive,
     bool isOnBreak,
     AttendanceState state,
+    bool enableTravelMode,
   ) {
     final checkInFormatted = state.activeAttendance != null
         ? DateFormat('hh:mm a').format(state.activeAttendance!.checkInTime)
@@ -431,9 +535,21 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   children: [
                     Text('Check-in Time', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                     const SizedBox(height: 2),
-                    Text(checkInFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(checkInFormatted, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   ],
                 ),
+                if (enableTravelMode)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text('Travel Mode', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text(
+                        state.activeAttendance!.travelMode,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.indigo.shade900),
+                      ),
+                    ],
+                  ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [

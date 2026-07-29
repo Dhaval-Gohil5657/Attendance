@@ -25,7 +25,10 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   });
 
   @override
-  Future<AttendanceEntity> checkIn({required String employeeId}) async {
+  Future<AttendanceEntity> checkIn({
+    required String employeeId,
+    String travelMode = 'Four-Wheeler',
+  }) async {
     final now = DateTime.now();
     final attendanceId = uuid.v4();
 
@@ -35,6 +38,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       checkInTime: now,
       status: 'active',
       isTracking: true,
+      travelMode: travelMode,
       createdAt: now,
     );
 

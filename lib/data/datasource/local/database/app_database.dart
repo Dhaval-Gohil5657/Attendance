@@ -19,6 +19,7 @@ class AttendanceTable extends Table {
   DateTimeColumn get checkOutTime => dateTime().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   BoolColumn get isTracking => boolean().withDefault(const Constant(true))();
+  TextColumn get travelMode => text().withDefault(const Constant('Four-Wheeler'))();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -50,7 +51,23 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            try {
+              await m.addColumn(locationLogTable, locationLogTable.employeeId);
+            } catch (_) {}
+          }
+          if (from < 3) {
+            try {
+              await m.addColumn(attendanceTable, attendanceTable.travelMode);
+            } catch (_) {}
+          }
+        },
+      );
 
   // Attendance Queries
   Future<int> insertAttendance(AttendanceTableCompanion entry) =>

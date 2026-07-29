@@ -78,6 +78,18 @@ class $AttendanceTableTable extends AttendanceTable
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _travelModeMeta = const VerificationMeta(
+    'travelMode',
+  );
+  @override
+  late final GeneratedColumn<String> travelMode = GeneratedColumn<String>(
+    'travel_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Four-Wheeler'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -97,6 +109,7 @@ class $AttendanceTableTable extends AttendanceTable
     checkOutTime,
     status,
     isTracking,
+    travelMode,
     createdAt,
   ];
   @override
@@ -162,6 +175,12 @@ class $AttendanceTableTable extends AttendanceTable
         isTracking.isAcceptableOrUnknown(data['is_tracking']!, _isTrackingMeta),
       );
     }
+    if (data.containsKey('travel_mode')) {
+      context.handle(
+        _travelModeMeta,
+        travelMode.isAcceptableOrUnknown(data['travel_mode']!, _travelModeMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -203,6 +222,10 @@ class $AttendanceTableTable extends AttendanceTable
         DriftSqlType.bool,
         data['${effectivePrefix}is_tracking'],
       )!,
+      travelMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}travel_mode'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -223,6 +246,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
   final DateTime? checkOutTime;
   final String status;
   final bool isTracking;
+  final String travelMode;
   final DateTime createdAt;
   const AttendanceData({
     required this.attendanceId,
@@ -231,6 +255,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     this.checkOutTime,
     required this.status,
     required this.isTracking,
+    required this.travelMode,
     required this.createdAt,
   });
   @override
@@ -244,6 +269,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     }
     map['status'] = Variable<String>(status);
     map['is_tracking'] = Variable<bool>(isTracking);
+    map['travel_mode'] = Variable<String>(travelMode);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -258,6 +284,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
           : Value(checkOutTime),
       status: Value(status),
       isTracking: Value(isTracking),
+      travelMode: Value(travelMode),
       createdAt: Value(createdAt),
     );
   }
@@ -274,6 +301,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
       checkOutTime: serializer.fromJson<DateTime?>(json['checkOutTime']),
       status: serializer.fromJson<String>(json['status']),
       isTracking: serializer.fromJson<bool>(json['isTracking']),
+      travelMode: serializer.fromJson<String>(json['travelMode']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -287,6 +315,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
       'checkOutTime': serializer.toJson<DateTime?>(checkOutTime),
       'status': serializer.toJson<String>(status),
       'isTracking': serializer.toJson<bool>(isTracking),
+      'travelMode': serializer.toJson<String>(travelMode),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -298,6 +327,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     Value<DateTime?> checkOutTime = const Value.absent(),
     String? status,
     bool? isTracking,
+    String? travelMode,
     DateTime? createdAt,
   }) => AttendanceData(
     attendanceId: attendanceId ?? this.attendanceId,
@@ -306,6 +336,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     checkOutTime: checkOutTime.present ? checkOutTime.value : this.checkOutTime,
     status: status ?? this.status,
     isTracking: isTracking ?? this.isTracking,
+    travelMode: travelMode ?? this.travelMode,
     createdAt: createdAt ?? this.createdAt,
   );
   AttendanceData copyWithCompanion(AttendanceTableCompanion data) {
@@ -326,6 +357,9 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
       isTracking: data.isTracking.present
           ? data.isTracking.value
           : this.isTracking,
+      travelMode: data.travelMode.present
+          ? data.travelMode.value
+          : this.travelMode,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -339,6 +373,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
           ..write('checkOutTime: $checkOutTime, ')
           ..write('status: $status, ')
           ..write('isTracking: $isTracking, ')
+          ..write('travelMode: $travelMode, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -352,6 +387,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     checkOutTime,
     status,
     isTracking,
+    travelMode,
     createdAt,
   );
   @override
@@ -364,6 +400,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
           other.checkOutTime == this.checkOutTime &&
           other.status == this.status &&
           other.isTracking == this.isTracking &&
+          other.travelMode == this.travelMode &&
           other.createdAt == this.createdAt);
 }
 
@@ -374,6 +411,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
   final Value<DateTime?> checkOutTime;
   final Value<String> status;
   final Value<bool> isTracking;
+  final Value<String> travelMode;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const AttendanceTableCompanion({
@@ -383,6 +421,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
     this.checkOutTime = const Value.absent(),
     this.status = const Value.absent(),
     this.isTracking = const Value.absent(),
+    this.travelMode = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -393,6 +432,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
     this.checkOutTime = const Value.absent(),
     this.status = const Value.absent(),
     this.isTracking = const Value.absent(),
+    this.travelMode = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : attendanceId = Value(attendanceId),
@@ -406,6 +446,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
     Expression<DateTime>? checkOutTime,
     Expression<String>? status,
     Expression<bool>? isTracking,
+    Expression<String>? travelMode,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -416,6 +457,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
       if (checkOutTime != null) 'check_out_time': checkOutTime,
       if (status != null) 'status': status,
       if (isTracking != null) 'is_tracking': isTracking,
+      if (travelMode != null) 'travel_mode': travelMode,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -428,6 +470,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
     Value<DateTime?>? checkOutTime,
     Value<String>? status,
     Value<bool>? isTracking,
+    Value<String>? travelMode,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -438,6 +481,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
       checkOutTime: checkOutTime ?? this.checkOutTime,
       status: status ?? this.status,
       isTracking: isTracking ?? this.isTracking,
+      travelMode: travelMode ?? this.travelMode,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -464,6 +508,9 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
     if (isTracking.present) {
       map['is_tracking'] = Variable<bool>(isTracking.value);
     }
+    if (travelMode.present) {
+      map['travel_mode'] = Variable<String>(travelMode.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -482,6 +529,7 @@ class AttendanceTableCompanion extends UpdateCompanion<AttendanceData> {
           ..write('checkOutTime: $checkOutTime, ')
           ..write('status: $status, ')
           ..write('isTracking: $isTracking, ')
+          ..write('travelMode: $travelMode, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1212,6 +1260,7 @@ typedef $$AttendanceTableTableCreateCompanionBuilder =
       Value<DateTime?> checkOutTime,
       Value<String> status,
       Value<bool> isTracking,
+      Value<String> travelMode,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -1223,6 +1272,7 @@ typedef $$AttendanceTableTableUpdateCompanionBuilder =
       Value<DateTime?> checkOutTime,
       Value<String> status,
       Value<bool> isTracking,
+      Value<String> travelMode,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -1263,6 +1313,11 @@ class $$AttendanceTableTableFilterComposer
 
   ColumnFilters<bool> get isTracking => $composableBuilder(
     column: $table.isTracking,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get travelMode => $composableBuilder(
+    column: $table.travelMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1311,6 +1366,11 @@ class $$AttendanceTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get travelMode => $composableBuilder(
+    column: $table.travelMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1351,6 +1411,11 @@ class $$AttendanceTableTableAnnotationComposer
 
   GeneratedColumn<bool> get isTracking => $composableBuilder(
     column: $table.isTracking,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get travelMode => $composableBuilder(
+    column: $table.travelMode,
     builder: (column) => column,
   );
 
@@ -1401,6 +1466,7 @@ class $$AttendanceTableTableTableManager
                 Value<DateTime?> checkOutTime = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> isTracking = const Value.absent(),
+                Value<String> travelMode = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AttendanceTableCompanion(
@@ -1410,6 +1476,7 @@ class $$AttendanceTableTableTableManager
                 checkOutTime: checkOutTime,
                 status: status,
                 isTracking: isTracking,
+                travelMode: travelMode,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -1421,6 +1488,7 @@ class $$AttendanceTableTableTableManager
                 Value<DateTime?> checkOutTime = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> isTracking = const Value.absent(),
+                Value<String> travelMode = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => AttendanceTableCompanion.insert(
@@ -1430,6 +1498,7 @@ class $$AttendanceTableTableTableManager
                 checkOutTime: checkOutTime,
                 status: status,
                 isTracking: isTracking,
+                travelMode: travelMode,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

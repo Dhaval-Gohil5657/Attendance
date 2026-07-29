@@ -158,7 +158,8 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
       }
 
       final newAttendance = await repository.checkIn(
-        employeeId: event.employeeId.isEmpty ? 'EMP_DUMMY_001' : event.employeeId,
+        employeeId: event.employeeId,
+        travelMode: event.travelMode,
       );
 
       double? lat = state.currentLatitude;

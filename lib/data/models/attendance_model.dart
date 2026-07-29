@@ -12,6 +12,7 @@ class AttendanceModel extends AttendanceEntity {
     super.checkOutTime,
     required super.status,
     required super.isTracking,
+    super.travelMode = 'Four-Wheeler',
     required super.createdAt,
   });
 
@@ -23,6 +24,7 @@ class AttendanceModel extends AttendanceEntity {
       checkOutTime: entity.checkOutTime,
       status: entity.status,
       isTracking: entity.isTracking,
+      travelMode: entity.travelMode,
       createdAt: entity.createdAt,
     );
   }
@@ -35,6 +37,7 @@ class AttendanceModel extends AttendanceEntity {
       checkOutTime: data.checkOutTime,
       status: data.status,
       isTracking: data.isTracking,
+      travelMode: data.travelMode,
       createdAt: data.createdAt,
     );
   }
@@ -47,6 +50,7 @@ class AttendanceModel extends AttendanceEntity {
       checkOutTime: Value(checkOutTime),
       status: Value(status),
       isTracking: Value(isTracking),
+      travelMode: Value(travelMode),
       createdAt: createdAt,
     );
   }
@@ -59,6 +63,7 @@ class AttendanceModel extends AttendanceEntity {
       'checkOutTime': checkOutTime != null ? Timestamp.fromDate(checkOutTime!) : null,
       'status': status,
       'isTracking': isTracking,
+      'travelMode': travelMode,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -73,6 +78,7 @@ class AttendanceModel extends AttendanceEntity {
           : null,
       status: json['status'] ?? 'active',
       isTracking: json['isTracking'] ?? false,
+      travelMode: json['travelMode'] ?? 'Four-Wheeler',
       createdAt: (json['createdAt'] as Timestamp).toDate(),
     );
   }

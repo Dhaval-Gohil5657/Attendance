@@ -172,12 +172,22 @@ class EmployeeListScreen extends StatelessWidget {
 
                   // Employee List View with Real-time Attendance Status
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final data = docs[index].data();
-                        final empName = data['name'] ?? 'Employee';
-                        final empEmail = data['email'] ?? 'No email';
+                    child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('companies')
+                          .doc(companyUser.companyId ?? companyUser.uid)
+                          .snapshots(),
+                      builder: (context, compSnapshot) {
+                        final compData = compSnapshot.data?.data();
+                        final policy = compData?['attendancePolicy'] as Map<String, dynamic>?;
+                        final enableTravelMode = policy?['enableTravelMode'] ?? false;
+
+                        return ListView.builder(
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final data = docs[index].data();
+                            final empName = data['name'] ?? 'Employee';
+                            final empEmail = data['email'] ?? 'No email';
 
                         final initial = empName.isNotEmpty ? empName[0].toUpperCase() : 'E';
 
@@ -190,7 +200,7 @@ class EmployeeListScreen extends StatelessWidget {
                             side: BorderSide(color: Colors.grey.shade200),
                           ),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             leading: CircleAvatar(
                               radius: 24,
                               backgroundColor: Colors.indigo.shade50,
@@ -233,6 +243,14 @@ class EmployeeListScreen extends StatelessWidget {
                                 final latestAtt = attList.isNotEmpty ? attList.first.data() : null;
                                 final isTracking = latestAtt?['isTracking'] ?? false;
                                 final status = latestAtt?['status'] ?? 'not_started';
+                                final travelMode = latestAtt?['travelMode'] as String? ?? 'Four-Wheeler';
+
+                                IconData travelIcon = Icons.directions_car_rounded;
+                                if (travelMode == 'Walking') {
+                                  travelIcon = Icons.directions_walk_rounded;
+                                } else if (travelMode == 'Two-Wheeler') {
+                                  travelIcon = Icons.two_wheeler_rounded;
+                                }
 
                                 String attStatusText = 'NOT STARTED';
                                 Color attColor = Colors.grey.shade700;
@@ -259,7 +277,7 @@ class EmployeeListScreen extends StatelessWidget {
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 1),
                                     Row(
                                       children: [
                                         Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade600),
@@ -274,29 +292,53 @@ class EmployeeListScreen extends StatelessWidget {
                                       ],
                                     ),
                                     const SizedBox(height: 6),
-                                    // Real-time Attendance Status Badge
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: attBg,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: attBorder),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.circle, size: 8, color: attColor),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            attStatusText,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: attColor,
+                                    // Status Badge & Travel Mode Icon Row
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: attBg,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: attBorder),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.circle, size: 8, color: attColor),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                attStatusText,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: attColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (enableTravelMode && latestAtt != null && status != 'not_started') ...[
+                                          const SizedBox(width: 6),
+                                          Tooltip(
+                                            message: 'Travel Mode: $travelMode',
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.indigo.shade50,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: Colors.indigo.shade100),
+                                              ),
+                                              child: Icon(
+                                                travelIcon,
+                                                size: 14,
+                                                color: Colors.indigo.shade900,
+                                              ),
                                             ),
                                           ),
                                         ],
-                                      ),
+                                      ],
                                     ),
                                   ],
                                 );
@@ -320,8 +362,10 @@ class EmployeeListScreen extends StatelessWidget {
                           ),
                         );
                       },
-                    ),
-                  ),
+                    );
+                  },
+                ),
+              ),
                 ],
               ),
             );

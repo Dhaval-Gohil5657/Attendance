@@ -18,11 +18,15 @@ class InitializeAttendance extends AttendanceEvent {
 
 class CheckInEvent extends AttendanceEvent {
   final String employeeId;
+  final String travelMode;
 
-  const CheckInEvent({required this.employeeId});
+  const CheckInEvent({
+    required this.employeeId,
+    this.travelMode = 'Four-Wheeler',
+  });
 
   @override
-  List<Object?> get props => [employeeId];
+  List<Object?> get props => [employeeId, travelMode];
 }
 
 class CheckOutEvent extends AttendanceEvent {}

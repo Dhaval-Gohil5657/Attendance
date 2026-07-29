@@ -2,7 +2,10 @@ import '../entities/attendance_entity.dart';
 import '../entities/location_entity.dart';
 
 abstract class AttendanceRepository {
-  Future<AttendanceEntity> checkIn({required String employeeId});
+  Future<AttendanceEntity> checkIn({
+    required String employeeId,
+    String travelMode = 'Four-Wheeler',
+  });
   Future<AttendanceEntity?> checkOut({required String attendanceId});
   Future<AttendanceEntity?> startBreak({required String attendanceId});
   Future<AttendanceEntity?> endBreak({required String attendanceId});
