@@ -3,22 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'core/di/injection_container.dart';
-import 'core/services/background_location_service.dart';
-import 'core/services/sync_service.dart';
-import 'domain/entities/employee_entity.dart';
-import 'domain/repositories/attendance_repository.dart';
-import 'presentation/bloc/attendance_bloc.dart';
-import 'presentation/bloc/attendance_event.dart';
-import 'presentation/bloc/auth_bloc.dart';
-import 'presentation/bloc/auth_event.dart';
-import 'presentation/bloc/auth_state.dart';
-import 'presentation/screens/company/company_dashboard_screen.dart';
-import 'presentation/screens/company/company_pending_screen.dart';
-import 'presentation/screens/employee/employee_dashboard.dart';
-import 'presentation/screens/employee/first_login_setup_screen.dart';
-import 'presentation/screens/employee/quick_login_screen.dart';
-import 'presentation/screens/role_selection_screen.dart';
+import 'di/injection_container.dart';
+import 'local/services/background_location_service.dart';
+import 'local/services/sync_service.dart';
+import 'backend/models/employee_model.dart';
+import 'backend/repositories/attendance_repository.dart';
+import 'ui/bloc/attendance/attendance_bloc.dart';
+import 'ui/bloc/attendance/attendance_event.dart';
+import 'ui/bloc/auth/auth_bloc.dart';
+import 'ui/bloc/auth/auth_event.dart';
+import 'ui/bloc/auth/auth_state.dart';
+import 'ui/theme/app_theme.dart';
+import 'ui/screens/company/company_dashboard_screen.dart';
+import 'ui/screens/company/company_pending_screen.dart';
+import 'ui/screens/employee/employee_dashboard.dart';
+import 'ui/screens/employee/first_login_setup_screen.dart';
+import 'ui/screens/employee/quick_login_screen.dart';
+import 'ui/screens/role_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,20 +64,7 @@ class AttendanceApp extends StatelessWidget {
       child: MaterialApp(
         title: 'HRMS Attendance System',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.indigo,
-            brightness: Brightness.light,
-          ),
-          appBarTheme: const AppBarTheme(
-            titleSpacing: 0,
-            titleTextStyle: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),
-          ),
-          actionIconTheme: ActionIconThemeData(
-            backButtonIconBuilder: (context) => const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          ),
-        ),
+        theme: AppTheme.lightTheme,
         home: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is AuthenticatedState) {

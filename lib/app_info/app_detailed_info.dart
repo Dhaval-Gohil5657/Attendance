@@ -160,26 +160,22 @@ When Travel Mode selection is enabled, employees choose their mode of transit:
 
 ```
 lib/
-├── core/
-│   ├── constants/
-│   ├── helpers/
-│   ├── services/
-│   └── utils/
-├── data/
-│   ├── datasource/
-│   │   ├── local/
-│   │   └── remote/
-│   ├── models/
-│   └── repositories/
-├── domain/
-│   ├── entities/
-│   ├── repositories/
-│   └── usecases/
-├── presentation/
-│   ├── bloc/
-│   ├── screens/
-│   └── widgets/
-└── main.dart
+├── ui/                 # All User Interface & State Management
+│   ├── bloc/           # BLoC state management
+│   ├── screens/        # App screens (company, employee, auth)
+│   └── widgets/        # Reusable UI widgets & dialogs
+├── backend/            # Backend, Firebase & Remote Services
+│   ├── models/         # Entities & data models
+│   ├── repositories/   # Repository interfaces & implementations
+│   └── services/       # Firebase & remote data sources
+├── local/              # Local Storage & Device Services
+│   ├── database/       # Drift local database
+│   ├── datasource/     # Local data source
+│   ├── helpers/        # Permission helpers
+│   └── services/       # Background location & sync services
+├── di/                 # Dependency injection container
+├── app_info/           # App documentation & metadata
+└── main.dart           # App entry point
 ```
 
 ---
